@@ -29,42 +29,22 @@ export default async function ConnectionsPage({
   }
 
   // Check which platforms are connected
-  // Try by user_id first, fallback to creator_unique_identifier if needed
   const [youtubeTokens, instagramTokens, tiktokTokens] = await Promise.all([
     supabase
       .from('youtube_tokens')
       .select('user_id, channel_id, handle, expires_at')
       .eq('user_id', user.id)
-      .maybeSingle()
-      .catch(() => {
-        // Fallback: try by creator_unique_identifier if user_id doesn't work
-        return supabase
-          .from('youtube_tokens')
-          .select('user_id, channel_id, handle, expires_at')
-          .maybeSingle()
-      }),
+      .maybeSingle(),
     supabase
       .from('instagram_tokens')
       .select('user_id, instagram_id, username, expires_at')
       .eq('user_id', user.id)
-      .maybeSingle()
-      .catch(() => {
-        return supabase
-          .from('instagram_tokens')
-          .select('user_id, instagram_id, username, expires_at')
-          .maybeSingle()
-      }),
+      .maybeSingle(),
     supabase
       .from('tiktok_tokens')
       .select('user_id, tiktok_open_id, display_name, expires_at')
       .eq('user_id', user.id)
-      .maybeSingle()
-      .catch(() => {
-        return supabase
-          .from('tiktok_tokens')
-          .select('user_id, tiktok_open_id, display_name, expires_at')
-          .maybeSingle()
-      }),
+      .maybeSingle(),
   ])
 
   const isYouTubeConnected = !!youtubeTokens.data
