@@ -5,6 +5,7 @@ import { getLeaderboard, getLeaderboardByNiche } from '@/lib/db/leaderboard'
 import { getCurrentCreator } from '@/lib/db/creator'
 import { formatNumber, getRankBadgeColor, getRankBadgeIcon } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Image from 'next/image'
 
 export default async function LeaderboardPage() {
   const creator = await getCurrentCreator()
@@ -78,10 +79,12 @@ export default async function LeaderboardPage() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                   {entry.creator_profiles.avatar_url ? (
-                    <img
+                    <Image
                       src={entry.creator_profiles.avatar_url}
                       alt={entry.creator_profiles.display_name || 'Creator'}
-                      className="w-full h-full object-cover"
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover rounded-full"
                     />
                   ) : (
                     <Users className="h-5 w-5 text-foreground/50" />

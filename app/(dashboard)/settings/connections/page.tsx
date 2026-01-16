@@ -280,8 +280,8 @@ export default async function ConnectionsPage({
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-foreground/70">
-            <li>• Click "Connect" to authorize AIR Publisher to post on your behalf</li>
-            <li>• You'll be redirected to the platform to sign in and grant permissions</li>
+            <li>• Click &quot;Connect&quot; to authorize AIR Publisher to post on your behalf</li>
+            <li>• You&apos;ll be redirected to the platform to sign in and grant permissions</li>
             <li>• Your access tokens are securely stored and encrypted</li>
             <li>• You can disconnect or reconnect at any time</li>
             <li>• Tokens may expire and need to be refreshed periodically</li>
