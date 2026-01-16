@@ -52,14 +52,18 @@ export default async function ConnectionsPage({
   const isTikTokConnected = !!tiktokTokens.data
 
   // Check if tokens are expired
-  const isYouTubeExpired = isYouTubeConnected && youtubeTokens.data?.expires_at
-    ? new Date(youtubeTokens.data.expires_at) < new Date()
+  const youtubeExpiresAt = youtubeTokens.data && (youtubeTokens.data as any).expires_at
+  const instagramExpiresAt = instagramTokens.data && (instagramTokens.data as any).expires_at
+  const tiktokExpiresAt = tiktokTokens.data && (tiktokTokens.data as any).expires_at
+
+  const isYouTubeExpired = isYouTubeConnected && youtubeExpiresAt
+    ? new Date(youtubeExpiresAt) < new Date()
     : false
-  const isInstagramExpired = isInstagramConnected && instagramTokens.data?.expires_at
-    ? new Date(instagramTokens.data.expires_at) < new Date()
+  const isInstagramExpired = isInstagramConnected && instagramExpiresAt
+    ? new Date(instagramExpiresAt) < new Date()
     : false
-  const isTikTokExpired = isTikTokConnected && tiktokTokens.data?.expires_at
-    ? new Date(tiktokTokens.data.expires_at) < new Date()
+  const isTikTokExpired = isTikTokConnected && tiktokExpiresAt
+    ? new Date(tiktokExpiresAt) < new Date()
     : false
 
   return (
