@@ -152,7 +152,7 @@ export async function GET(request: Request) {
       .eq('user_id', stateData.user_id)
       .maybeSingle()
 
-    const tokenRecord: any = {
+    const tokenRecord = {
       user_id: stateData.user_id,
       creator_unique_identifier: stateData.creator_unique_identifier, // Store for easier lookup
       instagram_id: instagramBusinessAccountId || 'pending',
@@ -162,12 +162,12 @@ export async function GET(request: Request) {
       expires_at: expiresAt,
       instagram_business_account_id: instagramBusinessAccountId,
       page_id: pageId,
-    }
+    } as any
 
     if (existing) {
       const { error: updateError } = await serviceClient
         .from('instagram_tokens')
-        .update(tokenRecord)
+        .update(tokenRecord as any)
         .eq('user_id', stateData.user_id)
 
       if (updateError) {
@@ -179,7 +179,7 @@ export async function GET(request: Request) {
     } else {
       const { error: insertError } = await serviceClient
         .from('instagram_tokens')
-        .insert(tokenRecord)
+        .insert(tokenRecord as any)
 
       if (insertError) {
         console.error('Error inserting Instagram tokens:', insertError)

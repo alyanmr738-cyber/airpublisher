@@ -135,7 +135,7 @@ export async function GET(request: Request) {
     if (existing) {
       const { error: updateError } = await serviceClient
         .from('tiktok_tokens')
-        .update(tokenRecord)
+        .update(tokenRecord as any)
         .eq('user_id', stateData.user_id)
 
       if (updateError) {
@@ -147,7 +147,7 @@ export async function GET(request: Request) {
     } else {
       const { error: insertError } = await serviceClient
         .from('tiktok_tokens')
-        .insert(tokenRecord)
+        .insert(tokenRecord as any)
 
       if (insertError) {
         console.error('Error inserting TikTok tokens:', insertError)
