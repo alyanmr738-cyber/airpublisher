@@ -134,9 +134,9 @@ export default async function ConnectionsPage({
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-foreground/70">Channel:</p>
-                  <p className="font-semibold">{youtubeTokens.data?.handle || 'Connected'}</p>
-                  {youtubeTokens.data?.channel_id && (
-                    <p className="text-xs text-foreground/50">ID: {youtubeTokens.data.channel_id}</p>
+                  <p className="font-semibold">{(youtubeTokens.data as any)?.handle || 'Connected'}</p>
+                  {(youtubeTokens.data as any)?.channel_id && (
+                    <p className="text-xs text-foreground/50">ID: {(youtubeTokens.data as any).channel_id}</p>
                   )}
                 </div>
                 {isYouTubeExpired && (
@@ -183,9 +183,9 @@ export default async function ConnectionsPage({
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-foreground/70">Account:</p>
-                  <p className="font-semibold">@{instagramTokens.data?.username || 'Connected'}</p>
-                  {instagramTokens.data?.instagram_id && (
-                    <p className="text-xs text-foreground/50">ID: {instagramTokens.data.instagram_id}</p>
+                  <p className="font-semibold">@{(instagramTokens.data as any)?.username || 'Connected'}</p>
+                  {(instagramTokens.data as any)?.instagram_id && (
+                    <p className="text-xs text-foreground/50">ID: {(instagramTokens.data as any).instagram_id}</p>
                   )}
                 </div>
                 {isInstagramExpired && (
@@ -232,9 +232,9 @@ export default async function ConnectionsPage({
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-foreground/70">Account:</p>
-                  <p className="font-semibold">{tiktokTokens.data?.display_name || 'Connected'}</p>
-                  {tiktokTokens.data?.tiktok_open_id && (
-                    <p className="text-xs text-foreground/50">ID: {tiktokTokens.data.tiktok_open_id}</p>
+                  <p className="font-semibold">{(tiktokTokens.data as any)?.display_name || 'Connected'}</p>
+                  {(tiktokTokens.data as any)?.tiktok_open_id && (
+                    <p className="text-xs text-foreground/50">ID: {(tiktokTokens.data as any).tiktok_open_id}</p>
                   )}
                 </div>
                 {isTikTokExpired && (
