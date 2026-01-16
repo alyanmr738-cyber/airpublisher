@@ -6,6 +6,7 @@ import { getCreatorRank } from '@/lib/db/leaderboard'
 import { formatNumber, getRankBadgeColor, getRankBadgeIcon } from '@/lib/utils'
 import { Users, Trophy, Eye, Heart, MessageCircle, DollarSign } from 'lucide-react'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 
 export default async function CreatorProfilePage({
   params,
@@ -34,10 +35,12 @@ export default async function CreatorProfilePage({
           <div className="flex items-start gap-6">
             <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-4 border-primary/20">
               {creator.avatar_url ? (
-                <img
+                <Image
                   src={creator.avatar_url}
                   alt={creator.display_name || 'Creator'}
-                  className="w-full h-full object-cover"
+                  width={96}
+                  height={96}
+                  className="w-full h-full object-cover rounded-full"
                 />
               ) : (
                 <Users className="h-12 w-12 text-foreground/50" />
@@ -154,11 +157,12 @@ export default async function CreatorProfilePage({
                   className="rounded-lg border border-border overflow-hidden hover:bg-card-hover transition-colors"
                 >
                   {video.thumbnail_url && (
-                    <div className="aspect-video bg-muted overflow-hidden">
-                      <img
+                    <div className="aspect-video bg-muted overflow-hidden relative">
+                      <Image
                         src={video.thumbnail_url}
                         alt={video.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     </div>
                   )}
