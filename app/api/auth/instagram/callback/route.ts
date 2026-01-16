@@ -167,7 +167,7 @@ export async function GET(request: Request) {
     if (existing) {
       const { error: updateError } = await serviceClient
         .from('instagram_tokens')
-        .update(tokenRecord as any)
+        .update(tokenRecord as Record<string, any>)
         .eq('user_id', stateData.user_id)
 
       if (updateError) {
@@ -179,7 +179,7 @@ export async function GET(request: Request) {
     } else {
       const { error: insertError } = await serviceClient
         .from('instagram_tokens')
-        .insert(tokenRecord as any)
+        .insert(tokenRecord as Record<string, any>)
 
       if (insertError) {
         console.error('Error inserting Instagram tokens:', insertError)

@@ -139,7 +139,7 @@ export async function GET(request: Request) {
       // Update existing tokens
       const { error: updateError } = await serviceClient
         .from('youtube_tokens')
-        .update(tokenData as any)
+        .update(tokenData as Record<string, any>)
         .eq('user_id', stateData.user_id)
 
       if (updateError) {
@@ -152,7 +152,7 @@ export async function GET(request: Request) {
       // Insert new tokens
       const { error: insertError } = await serviceClient
         .from('youtube_tokens')
-        .insert(tokenData as any)
+        .insert(tokenData as Record<string, any>)
 
       if (insertError) {
         console.error('Error inserting YouTube tokens:', insertError)
