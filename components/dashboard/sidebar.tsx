@@ -10,6 +10,8 @@ import {
   User,
   LogOut,
   Settings,
+  Video,
+  Compass,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,7 +19,9 @@ import { createClient } from '@/lib/supabase/client'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Discover', href: '/discover', icon: Compass },
   { name: 'Upload', href: '/upload', icon: Upload },
+  { name: 'Videos', href: '/videos', icon: Video },
   { name: 'Schedule', href: '/schedule', icon: Calendar },
   { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { name: 'Settings', href: '/settings/connections', icon: Settings },
@@ -28,16 +32,30 @@ export function Sidebar() {
 
   const handleSignOut = async () => {
     const supabase = createClient()
+    
+    // Clear the creator profile cookie before signing out
+    // This prevents the next user from seeing the previous user's profile
+    try {
+      // Call API route to clear httpOnly cookie
+      await fetch('/api/auth/clear-profile-cookie', { method: 'POST' })
+      // Also clear from localStorage if it exists
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('creator_unique_identifier')
+      }
+    } catch (e) {
+      console.warn('Could not clear creator profile cookie:', e)
+    }
+    
     await supabase.auth.signOut()
     window.location.href = '/'
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      <div className="flex h-20 items-center border-b border-border px-6">
-        <h1 className="text-2xl font-extrabold text-primary">AIR Publisher</h1>
+    <div className="flex h-screen w-64 flex-col border-r border-border/30 bg-card">
+      <div className="flex h-20 items-center border-b border-border/30 px-6">
+        <h1 className="text-lg font-semibold text-foreground tracking-tight">AIR Publisher</h1>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 px-3 py-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href
           return (
@@ -45,13 +63,13 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all',
+                'flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-primary/20 text-primary border-l-4 border-primary'
-                  : 'text-foreground/70 hover:bg-card-hover hover:text-foreground'
+                  ? 'bg-primary/10 text-primary border-l-2 border-primary'
+                  : 'text-muted hover:bg-card-hover hover:text-foreground'
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-4 w-4" />
               {item.name}
             </Link>
           )

@@ -83,10 +83,10 @@ export default async function DashboardPage({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-4xl font-extrabold mb-2">Dashboard</h1>
-          <p className="text-foreground/80 text-lg font-medium">
+          <h1 className="text-2xl font-semibold mb-1 text-foreground">Dashboard</h1>
+          <p className="text-muted text-sm font-normal">
             Welcome back, {creator.display_name || 'Creator'}
           </p>
         </div>
@@ -179,19 +179,19 @@ export default async function DashboardPage({
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Calendar className="h-4 w-4 text-primary" />
               Scheduled Posts
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-2">{scheduledCount}</div>
-            <p className="text-sm text-foreground/70 mb-4">
+            <div className="text-3xl font-bold mb-2 text-foreground">{scheduledCount}</div>
+            <p className="text-sm text-muted mb-4">
               Videos ready to publish
             </p>
             <Link href="/schedule">
-              <Button variant="outline" className="w-full">
+              <Button variant="secondary" className="w-full text-sm">
                 View Schedule
               </Button>
             </Link>
@@ -199,19 +199,19 @@ export default async function DashboardPage({
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Upload className="h-4 w-4 text-primary" />
               Drafts
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold mb-2">{draftCount}</div>
-            <p className="text-sm text-foreground/70 mb-4">
+            <div className="text-3xl font-bold mb-2 text-foreground">{draftCount}</div>
+            <p className="text-sm text-muted mb-4">
               Videos in progress
             </p>
             <Link href="/upload">
-              <Button variant="outline" className="w-full">
+              <Button variant="secondary" className="w-full text-sm">
                 Continue Editing
               </Button>
             </Link>
@@ -221,8 +221,8 @@ export default async function DashboardPage({
 
       {/* Recent Videos */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Videos</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-medium">Recent Videos</CardTitle>
         </CardHeader>
         <CardContent>
           {videos.length === 0 ? (
@@ -240,8 +240,8 @@ export default async function DashboardPage({
                   className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-card-hover transition-colors"
                 >
                   <div className="flex-1">
-                    <h4 className="font-semibold">{video.title}</h4>
-                    <p className="text-sm text-foreground/70 mt-1">
+                    <h4 className="font-medium text-foreground">{video.title}</h4>
+                    <p className="text-sm text-muted mt-1">
                       {video.description || 'No description'}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
@@ -253,10 +253,11 @@ export default async function DashboardPage({
                             ? 'primary'
                             : 'default'
                         }
+                        className="text-xs"
                       >
                         {video.status}
                       </Badge>
-                      <span className="text-xs text-foreground/50">
+                      <span className="text-xs text-muted">
                         {video.platform_target}
                       </span>
                     </div>

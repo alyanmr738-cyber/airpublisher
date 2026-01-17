@@ -33,30 +33,95 @@ export function UploadForm({ creatorUniqueIdentifier }: UploadFormProps) {
 
     setUploading(true)
     try {
-      // Create draft entry first
+      // Create video entry - if platform is 'internal', auto-publish it
+      // Otherwise, create as 'draft' to be scheduled/posted later
+      const shouldAutoPublish = platform === 'internal'
+      
+      console.log('[UploadForm] Creating video record...', {
+        platform,
+        shouldAutoPublish,
+      })
+      
       const video = await createVideoAction({
         creator_unique_identifier: creatorUniqueIdentifier,
         source_type: 'ugc',
         title,
         description: description || null,
         platform_target: platform,
-        status: 'draft',
+        status: shouldAutoPublish ? 'posted' : 'draft',
+        posted_at: shouldAutoPublish ? new Date().toISOString() : null,
       })
 
-      // TODO: Upload file to Supabase Storage
-      // Then trigger n8n workflow for processing via webhook
-      // n8n will handle: transcoding, thumbnail generation, storage upload
-      // n8n will call /api/webhooks/n8n/upload-complete when done
+      console.log('[UploadForm] ✅ Video record created:', {
+        id: video.id,
+        title: video.title,
+        status: video.status,
+      })
+
+      if (!video.id) {
+        throw new Error('Video was created but no ID was returned')
+      }
+
+      // Upload file to Supabase Storage
+      if (file && video.id) {
+        console.log('[UploadForm] Uploading file to Supabase Storage...', {
+          videoId: video.id,
+          fileName: file.name,
+          fileSize: file.size,
+        })
+        
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const uploadResponse = await fetch(`/api/videos/${video.id}/upload`, {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json()
+          console.error('[UploadForm] Upload error:', errorData)
+          throw new Error(errorData.error || `Failed to upload file: ${uploadResponse.statusText}`)
+        }
+
+        const uploadResult = await uploadResponse.json()
+        console.log('[UploadForm] ✅ File uploaded successfully:', uploadResult.video_url)
+      } else {
+        console.warn('[UploadForm] Skipping file upload - no file or video ID')
+      }
 
       // Reset form
       setFile(null)
       setTitle('')
       setDescription('')
       setPreview(null)
-      alert('Video uploaded successfully!')
-    } catch (error) {
+      
+      // Show success message based on status
+      if (!video || !video.id) {
+        throw new Error('Video was created but no ID was returned. Check server logs.')
+      }
+
+      if (video.status === 'posted') {
+        alert(`Video uploaded and published successfully! 🎉\n\nVideo ID: ${video.id}\nIt's now live on the Discover page!`)
+      } else {
+        alert(`Video uploaded successfully! ✅\n\nVideo ID: ${video.id}\nStatus: ${video.status}\nGo to "My Videos" to schedule or publish it.`)
+      }
+      
+      // Refresh the page or redirect to videos page to see the video
+      setTimeout(() => {
+        window.location.href = '/videos'
+      }, 2000)
+    } catch (error: any) {
       console.error('Upload error:', error)
-      alert('Failed to upload video')
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        cause: error?.cause,
+      })
+      
+      // Show detailed error
+      const errorMessage = error?.message || 'Unknown error'
+      alert(`Failed to upload video:\n${errorMessage}\n\nCheck browser console for details.`)
     } finally {
       setUploading(false)
     }

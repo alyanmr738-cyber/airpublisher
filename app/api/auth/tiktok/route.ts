@@ -8,19 +8,39 @@ import { getCurrentCreator } from '@/lib/db/creator'
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    let user = null
+    let authError = null
 
-    if (!user) {
+    try {
+      const authResult = await supabase.auth.getUser()
+      user = authResult.data?.user || null
+      authError = authResult.error || null
+      console.log('[TikTok OAuth] Auth check:', {
+        hasUser: !!user,
+        userEmail: user?.email,
+        error: authError?.message || null,
+      })
+    } catch (error: any) {
+      console.error('[TikTok OAuth] Auth check exception:', error?.message || String(error))
+      authError = error
+    }
+
+    // In development, allow OAuth even without user (for testing)
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    
+    if (!isDevelopment && (!user || authError)) {
+      console.error('[TikTok OAuth] Auth failed, redirecting to login')
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Get creator profile
-    const creator = await getCurrentCreator()
-
-    if (!creator) {
-      return NextResponse.redirect(new URL('/setup', request.url))
+    // Try to get creator profile (but don't require it)
+    let creator = null
+    if (user) {
+      try {
+        creator = await getCurrentCreator()
+      } catch (error: any) {
+        console.error('[TikTok OAuth] Error fetching creator:', error?.message || String(error))
+      }
     }
 
     const clientKey = process.env.TIKTOK_CLIENT_KEY
@@ -35,8 +55,8 @@ export async function GET(request: Request) {
 
     // Generate state
     const state = Buffer.from(JSON.stringify({
-      creator_unique_identifier: creator.unique_identifier,
-      user_id: user.id,
+      creator_unique_identifier: creator?.unique_identifier || null,
+      user_id: user?.id || null,
     })).toString('base64url')
 
     // TikTok OAuth scopes for video upload

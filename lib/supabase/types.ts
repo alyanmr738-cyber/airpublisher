@@ -52,6 +52,7 @@ export interface Database {
           scheduled_at: string | null
           posted_at: string | null
           status: 'draft' | 'scheduled' | 'posted' | 'failed'
+          views: number
           created_at: string
           updated_at: string
         }

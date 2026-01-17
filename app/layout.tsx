@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+// Using system fonts directly to avoid Google Fonts network issues
+// Inter will be loaded via CSS if available, otherwise system fonts are used
 
 export const metadata: Metadata = {
   title: 'AIR Publisher - Creator OS Platform',
@@ -15,12 +15,26 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <html lang="en" className={inter.variable}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  )
+  try {
+    return (
+      <html lang="en">
+        <body>
+          <Providers>{children}</Providers>
+        </body>
+      </html>
+    )
+  } catch (error) {
+    console.error('Layout error:', error)
+    return (
+      <html lang="en">
+        <body>
+          <div style={{ padding: '20px', color: 'white' }}>
+            <h1>Error loading page</h1>
+            <p>Please check the console for details.</p>
+          </div>
+        </body>
+      </html>
+    )
+  }
 }
 

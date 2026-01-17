@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { createProfileAction } from '@/app/api/profile/actions'
+import { createClient } from '@/lib/supabase/client'
 
 export function SetupForm() {
   const [displayName, setDisplayName] = useState('')
@@ -11,7 +12,25 @@ export function SetupForm() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
+  const supabase = createClient()
+
+  // Get user ID from client-side session (workaround for server-side session detection issues)
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setUserId(user.id)
+          console.log('[SetupForm] Got user ID from client:', user.id)
+        }
+      } catch (e) {
+        console.warn('[SetupForm] Could not get user ID:', e)
+      }
+    }
+    getUser()
+  }, [supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,20 +38,40 @@ export function SetupForm() {
     setError(null)
 
     try {
-      const profile = await createProfileAction({
-        display_name: displayName || null,
-        niche: niche || null,
-        avatar_url: avatarUrl || null, // Maps to profile_pic_url in table
+      // Use API route instead of server action (handles cookies better)
+      const response = await fetch('/api/profile/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          display_name: displayName || null,
+          niche: niche || null,
+          avatar_url: avatarUrl || null,
+          user_id: userId || null, // Pass user ID from client as fallback
+        }),
       })
 
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create profile')
+      }
+
+      const profile = data.profile
       console.log('Profile created:', profile)
 
       // Store the unique_identifier in localStorage for client-side use
       if (profile?.unique_identifier) {
         localStorage.setItem('creator_unique_identifier', profile.unique_identifier)
-        // Also pass it as a query param so server can use it
-        window.location.href = `/dashboard?profile=${encodeURIComponent(profile.unique_identifier)}`
+        console.log('✅ Profile created with unique_identifier:', profile.unique_identifier)
+        console.log('✅ Redirecting to dashboard with profile param')
+        // Use a small delay to ensure cookie is set
+        setTimeout(() => {
+          window.location.href = `/dashboard?profile=${encodeURIComponent(profile.unique_identifier)}`
+        }, 100)
       } else {
+        console.warn('⚠️ Profile created but no unique_identifier returned')
         // Fallback: just redirect
         setTimeout(() => {
           window.location.href = '/dashboard'

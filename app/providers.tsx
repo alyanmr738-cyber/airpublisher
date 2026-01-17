@@ -26,22 +26,53 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    // Only run on client side
+    if (typeof window === 'undefined') {
       setLoading(false)
-    })
+      return
+    }
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    try {
+      const supabase = createClient()
 
-    return () => subscription.unsubscribe()
+      // Get initial session with timeout
+      const sessionPromise = supabase.auth.getSession()
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000))
+
+      Promise.race([sessionPromise, timeoutPromise])
+        .then((result) => {
+          if (result && typeof result === 'object' && 'data' in result) {
+            const { data } = result as { data: { session: any } }
+            setUser(data?.session?.user ?? null)
+          }
+          setLoading(false)
+        })
+        .catch((error) => {
+          console.error('Error getting session:', error)
+          setLoading(false)
+        })
+
+      // Listen for auth changes
+      try {
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null)
+        })
+
+        return () => {
+          if (subscription) {
+            subscription.unsubscribe()
+          }
+        }
+      } catch (error) {
+        console.error('Error setting up auth listener:', error)
+        return () => {}
+      }
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error)
+      setLoading(false)
+    }
   }, [])
 
   return (

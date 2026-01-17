@@ -32,17 +32,17 @@ export function KPICard({
       : value
 
   return (
-    <Card className="hover:border-primary/50 hover:bg-card-hover transition-all bg-card-elevated">
+    <Card className="hover:border-border/50 transition-all">
       <CardContent className="pt-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="p-2 bg-primary/20 rounded-xl">
-            <Icon className="h-6 w-6 text-primary" />
+          <div className="p-2 bg-primary/10 rounded-md">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
-        <div className="text-4xl md:text-5xl font-extrabold mb-3 text-foreground">
+        <div className="text-3xl md:text-4xl font-bold mb-2 text-foreground">
           {formattedValue}
         </div>
-        <CardTitle className="text-xs font-bold text-foreground/70 uppercase tracking-wider">
+        <CardTitle className="text-xs font-medium text-muted uppercase tracking-wider">
           {title}
         </CardTitle>
         {trend && (

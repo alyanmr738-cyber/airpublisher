@@ -113,15 +113,16 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    const userId = stateData.user_id || 'null_user_id_dev'
     const { data: existing } = await serviceClient
       .from('tiktok_tokens')
       .select('user_id')
-      .eq('user_id', stateData.user_id)
+      .eq('user_id', userId)
       .maybeSingle()
 
     const tokenRecord: any = {
-      user_id: stateData.user_id,
-      creator_unique_identifier: stateData.creator_unique_identifier, // Store for easier lookup
+      user_id: stateData.user_id || null,
+      creator_unique_identifier: stateData.creator_unique_identifier || null, // Store for easier lookup
       tiktok_open_id: open_id || null,
       access_token: access_token,
       refresh_token: refresh_token || null,
@@ -136,7 +137,7 @@ export async function GET(request: Request) {
       const { error: updateError } = await serviceClient
         .from('tiktok_tokens')
         .update(tokenRecord as Record<string, any>)
-        .eq('user_id', stateData.user_id)
+        .eq('user_id', userId)
 
       if (updateError) {
         console.error('Error updating TikTok tokens:', updateError)

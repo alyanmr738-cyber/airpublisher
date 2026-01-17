@@ -7,6 +7,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: 'www.dropbox.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.dropbox.com',
+      },
     ],
   },
 }

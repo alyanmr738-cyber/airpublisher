@@ -12,7 +12,7 @@ export default function HomePage() {
               <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
                 <span className="text-primary font-extrabold text-xl">A</span>
               </div>
-              <h1 className="text-2xl font-extrabold text-foreground">AIR PUBLISHER</h1>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">AIR Publisher</h1>
             </div>
             <div className="flex items-center gap-6">
               <Link
@@ -23,7 +23,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/dashboard"
-                className="bg-primary text-background px-6 py-3 rounded-xl font-bold hover:bg-primary-dark hover:shadow-glow-sm transition-all border-2 border-primary"
+                className="bg-primary text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-primary-dark shadow-sm transition-all"
               >
                 Get Started
               </Link>

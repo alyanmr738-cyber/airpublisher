@@ -17,41 +17,58 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     // Get all posted videos with their performance metrics
-    // In production, this would aggregate from platform APIs
+    // Aggregate views from air_publisher_videos table
     const { data: videos, error: videosError } = await supabase
       .from('air_publisher_videos')
-      .select('creator_unique_identifier, id')
+      .select('creator_unique_identifier, id, views, posted_at')
       .eq('status', 'posted')
 
     if (videosError) throw videosError
 
-    // Aggregate metrics by creator
+    // Calculate date ranges for daily/weekly periods
+    const now = new Date()
+    const dailyStart = new Date(now.getTime() - 24 * 60 * 60 * 1000) // 24 hours ago
+    const weeklyStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
+
+    // Aggregate metrics by creator and period
     const creatorMetrics: Record<
       string,
       {
-        views: number
-        likes: number
-        comments: number
-        revenue: number
+        allTime: { views: number; likes: number; comments: number; revenue: number }
+        weekly: { views: number; likes: number; comments: number; revenue: number }
+        daily: { views: number; likes: number; comments: number; revenue: number }
       }
     > = {}
 
-    // TODO: In production, fetch actual metrics from platform APIs
-    // For now, using placeholder values
+    // Aggregate views from videos
     videos?.forEach((video) => {
-      if (!creatorMetrics[video.creator_unique_identifier]) {
-        creatorMetrics[video.creator_unique_identifier] = {
-          views: 0,
-          likes: 0,
-          comments: 0,
-          revenue: 0,
+      const creatorId = video.creator_unique_identifier
+      if (!creatorMetrics[creatorId]) {
+        creatorMetrics[creatorId] = {
+          allTime: { views: 0, likes: 0, comments: 0, revenue: 0 },
+          weekly: { views: 0, likes: 0, comments: 0, revenue: 0 },
+          daily: { views: 0, likes: 0, comments: 0, revenue: 0 },
         }
       }
-      // Placeholder: would fetch from platform APIs
-      creatorMetrics[video.creator_unique_identifier].views += 0
-      creatorMetrics[video.creator_unique_identifier].likes += 0
-      creatorMetrics[video.creator_unique_identifier].comments += 0
-      creatorMetrics[video.creator_unique_identifier].revenue += 0
+
+      const videoViews = video.views || 0
+      const postedAt = video.posted_at ? new Date(video.posted_at) : null
+
+      // All-time: sum all videos
+      creatorMetrics[creatorId].allTime.views += videoViews
+
+      // Weekly: only videos posted in last 7 days
+      if (postedAt && postedAt >= weeklyStart) {
+        creatorMetrics[creatorId].weekly.views += videoViews
+      }
+
+      // Daily: only videos posted in last 24 hours
+      if (postedAt && postedAt >= dailyStart) {
+        creatorMetrics[creatorId].daily.views += videoViews
+      }
+
+      // TODO: Likes, comments, and revenue would come from platform APIs via n8n
+      // For now, these remain at 0 until n8n webhooks update them
     })
 
     // Calculate scores and update leaderboards for each period
@@ -64,19 +81,27 @@ export async function POST(request: Request) {
     for (const period of periods) {
       const entries = Object.entries(creatorMetrics).map(
         ([creatorUniqueIdentifier, metrics]) => {
+          // Get metrics for the current period
+          const periodMetrics =
+            period === 'daily'
+              ? metrics.daily
+              : period === 'weekly'
+              ? metrics.weekly
+              : metrics.allTime
+
           const score = calculateScore(
-            metrics.views,
-            metrics.likes,
-            metrics.comments,
-            metrics.revenue
+            periodMetrics.views,
+            periodMetrics.likes,
+            periodMetrics.comments,
+            periodMetrics.revenue
           )
 
           return {
             creator_unique_identifier: creatorUniqueIdentifier,
-            total_views: metrics.views,
-            total_likes: metrics.likes,
-            total_comments: metrics.comments,
-            estimated_revenue: metrics.revenue,
+            total_views: periodMetrics.views,
+            total_likes: periodMetrics.likes,
+            total_comments: periodMetrics.comments,
+            estimated_revenue: periodMetrics.revenue,
             score,
             period,
             rank: 0, // Will be calculated after sorting

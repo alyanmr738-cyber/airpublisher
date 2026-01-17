@@ -28,6 +28,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# credentials (keep local only)
+CREDENTIALS.md
+
 # render
 .render
 

@@ -76,12 +76,15 @@ YOUTUBE_CLIENT_SECRET=your-youtube-client-secret
 INSTAGRAM_APP_ID=1405584781151443
 INSTAGRAM_APP_SECRET=c82997f0ad2941b13cec68e4812d7b29
 
-# TikTok OAuth (when you get them)
-TIKTOK_CLIENT_KEY=your-tiktok-client-key
-TIKTOK_CLIENT_SECRET=your-tiktok-client-secret
+# Ayrshare API (Unified Social Media API - Recommended!)
+AYRSHARE_API_KEY=7CC0FF99-1BD04EF6-96400107-C8D60455
+
+# TikTok OAuth (Legacy - Use Ayrshare instead)
+# TIKTOK_CLIENT_KEY=your-tiktok-client-key
+# TIKTOK_CLIENT_SECRET=your-tiktok-client-secret
 
 # App URL (IMPORTANT: Update after deployment)
-NEXT_PUBLIC_APP_URL=https://your-app-name.onrender.com
+NEXT_PUBLIC_APP_URL=https://airpublisher.onrender.com
 
 # n8n Webhook (optional)
 N8N_API_KEY=your-n8n-webhook-secret

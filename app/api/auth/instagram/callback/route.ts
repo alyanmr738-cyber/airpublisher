@@ -30,8 +30,8 @@ export async function GET(request: Request) {
       )
     }
 
-    // Decode state
-    let stateData: { creator_unique_identifier: string; user_id: string }
+    // Decode state to get creator info
+    let stateData: { creator_unique_identifier?: string; user_id?: string }
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
     } catch {
@@ -40,8 +40,55 @@ export async function GET(request: Request) {
       )
     }
 
-    const appId = process.env.INSTAGRAM_APP_ID
-    const appSecret = process.env.INSTAGRAM_APP_SECRET
+    // If creator_unique_identifier is missing from state, fetch it from creator profile
+    let creatorUniqueIdentifier = stateData.creator_unique_identifier
+    const userId = stateData.user_id
+    
+    if (!creatorUniqueIdentifier && userId) {
+      console.log('[instagram-callback] creator_unique_identifier not in state, fetching from creator profile...')
+      const supabase = await createClient()
+      const { data: profiles, error: profileError } = await supabase
+        .from('creator_profiles')
+        .select('unique_identifier')
+        .limit(1)
+        .order('created_at', { ascending: false })
+      
+      if (!profileError && profiles && profiles.length > 0) {
+        creatorUniqueIdentifier = profiles[0].unique_identifier
+        console.log('[instagram-callback] Found creator_unique_identifier from profile:', creatorUniqueIdentifier)
+      }
+    }
+
+    // If still no creator_unique_identifier, try to get from getCurrentCreator
+    if (!creatorUniqueIdentifier) {
+      try {
+        const { getCurrentCreator } = await import('@/lib/db/creator')
+        const creator = await getCurrentCreator()
+        if (creator) {
+          creatorUniqueIdentifier = creator.unique_identifier
+          console.log('[instagram-callback] Found creator_unique_identifier from getCurrentCreator:', creatorUniqueIdentifier)
+        }
+      } catch (e) {
+        console.warn('[instagram-callback] Could not get creator from getCurrentCreator:', e)
+      }
+    }
+
+    // If still no creator_unique_identifier, we can't proceed
+    if (!creatorUniqueIdentifier) {
+      console.error('[instagram-callback] No creator_unique_identifier found - cannot store tokens')
+      return NextResponse.redirect(
+        new URL('/settings/connections?error=no_creator_profile', request.url)
+      )
+    }
+
+    // Update stateData with resolved creator_unique_identifier
+    const resolvedStateData = {
+      creator_unique_identifier: creatorUniqueIdentifier,
+      user_id: userId,
+    }
+
+    const appId = process.env.META_APP_ID || process.env.INSTAGRAM_APP_ID
+    const appSecret = process.env.META_APP_SECRET || process.env.INSTAGRAM_APP_SECRET
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/instagram/callback`
 
     if (!appId || !appSecret) {
@@ -51,14 +98,21 @@ export async function GET(request: Request) {
     }
 
     // Step 1: Exchange code for short-lived access token
-    const tokenResponse = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?` +
-      `client_id=${appId}&` +
-      `client_secret=${appSecret}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `code=${code}`,
-      { method: 'GET' }
-    )
+    // Instagram Business Login uses Instagram's own token endpoint, not Facebook's
+    // See: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
+    const tokenResponse = await fetch('https://api.instagram.com/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: appId,
+        client_secret: appSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code: code,
+      }),
+    })
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
@@ -69,21 +123,36 @@ export async function GET(request: Request) {
     }
 
     const tokenData = await tokenResponse.json()
-    const shortLivedToken = tokenData.access_token
+    
+    // Instagram Business Login returns data in a different format:
+    // { "data": [{ "access_token": "...", "user_id": "...", "permissions": "..." }] }
+    let shortLivedToken: string | null = null
+    let instagramUserId: string | null = null
+    
+    if (tokenData.data && Array.isArray(tokenData.data) && tokenData.data.length > 0) {
+      shortLivedToken = tokenData.data[0].access_token
+      instagramUserId = tokenData.data[0].user_id
+    } else if (tokenData.access_token) {
+      // Fallback: direct access_token (some responses might be different)
+      shortLivedToken = tokenData.access_token
+      instagramUserId = tokenData.user_id || null
+    }
 
     if (!shortLivedToken) {
+      console.error('Token response format:', JSON.stringify(tokenData, null, 2))
       return NextResponse.redirect(
         new URL('/settings/connections?error=no_access_token', request.url)
       )
     }
 
     // Step 2: Exchange for long-lived token (60 days)
+    // Instagram Business Login uses Instagram Graph API, not Facebook Graph API
+    // See: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
     const longLivedResponse = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?` +
-      `grant_type=fb_exchange_token&` +
-      `client_id=${appId}&` +
+      `https://graph.instagram.com/access_token?` +
+      `grant_type=ig_exchange_token&` +
       `client_secret=${appSecret}&` +
-      `fb_exchange_token=${shortLivedToken}`,
+      `access_token=${shortLivedToken}`,
       { method: 'GET' }
     )
 
@@ -96,47 +165,32 @@ export async function GET(request: Request) {
       if (longLivedData.expires_in) {
         expiresAt = new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
       }
+    } else {
+      console.warn('Failed to get long-lived token, using short-lived token:', await longLivedResponse.text())
     }
 
-    // Step 3: Get user's pages (to find Instagram Business Account)
-    const pagesResponse = await fetch(
-      `https://graph.facebook.com/v18.0/me/accounts?access_token=${longLivedToken}`
-    )
-
-    let instagramBusinessAccountId = null
-    let pageId = null
+    // Step 3: Get Instagram account info
+    // Instagram Business Login provides user_id directly in token response
+    // Use Instagram Graph API to get account details
+    let instagramBusinessAccountId = instagramUserId // Instagram-scoped user ID from token
     let username = null
 
-    if (pagesResponse.ok) {
-      const pagesData = await pagesResponse.json()
-      if (pagesData.data && pagesData.data.length > 0) {
-        // Get first page (you might want to let user select)
-        pageId = pagesData.data[0].id
-        
-        // Get Instagram Business Account for this page
-        const igAccountResponse = await fetch(
-          `https://graph.facebook.com/v18.0/${pageId}?` +
-          `fields=instagram_business_account&` +
-          `access_token=${longLivedToken}`
-        )
-
-        if (igAccountResponse.ok) {
-          const igData = await igAccountResponse.json()
-          instagramBusinessAccountId = igData.instagram_business_account?.id || null
-          
-          if (instagramBusinessAccountId) {
-            // Get Instagram account info
-            const igInfoResponse = await fetch(
-              `https://graph.facebook.com/v18.0/${instagramBusinessAccountId}?` +
-              `fields=username&` +
-              `access_token=${longLivedToken}`
-            )
-            if (igInfoResponse.ok) {
-              const igInfo = await igInfoResponse.json()
-              username = igInfo.username || null
-            }
-          }
-        }
+    if (instagramBusinessAccountId) {
+      // Get Instagram account details using Instagram Graph API
+      // Note: Instagram Business Login uses Instagram Graph API, not Facebook Graph API
+      const igInfoResponse = await fetch(
+        `https://graph.instagram.com/${instagramBusinessAccountId}?` +
+        `fields=username,account_type&` +
+        `access_token=${longLivedToken}`
+      )
+      
+      if (igInfoResponse.ok) {
+        const igInfo = await igInfoResponse.json()
+        username = igInfo.username || null
+        console.log('[instagram-callback] Instagram account info:', igInfo)
+      } else {
+        const errorText = await igInfoResponse.text()
+        console.warn('[instagram-callback] Failed to get Instagram account info:', errorText)
       }
     }
 
@@ -149,12 +203,12 @@ export async function GET(request: Request) {
     const { data: existing } = await serviceClient
       .from('instagram_tokens')
       .select('user_id')
-      .eq('user_id', stateData.user_id)
+      .eq('user_id', resolvedStateData.user_id || 'null_user_id_dev')
       .maybeSingle()
 
     const tokenRecord = {
-      user_id: stateData.user_id,
-      creator_unique_identifier: stateData.creator_unique_identifier, // Store for easier lookup
+      user_id: resolvedStateData.user_id || null,
+      creator_unique_identifier: resolvedStateData.creator_unique_identifier, // Store for easier lookup
       instagram_id: instagramBusinessAccountId || 'pending',
       access_token: longLivedToken,
       username: username,
@@ -168,7 +222,7 @@ export async function GET(request: Request) {
       const { error: updateError } = await serviceClient
         .from('instagram_tokens')
         .update(tokenRecord as Record<string, any>)
-        .eq('user_id', stateData.user_id)
+        .eq('user_id', resolvedStateData.user_id || 'null_user_id_dev')
 
       if (updateError) {
         console.error('Error updating Instagram tokens:', updateError)

@@ -27,13 +27,60 @@ export async function GET(request: Request) {
     }
 
     // Decode state to get creator info
-    let stateData: { creator_unique_identifier: string; user_id: string }
+    let stateData: { creator_unique_identifier?: string; user_id?: string }
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
     } catch {
       return NextResponse.redirect(
         new URL('/settings/connections?error=invalid_state', request.url)
       )
+    }
+
+    // If creator_unique_identifier is missing from state, fetch it from creator profile
+    let creatorUniqueIdentifier = stateData.creator_unique_identifier
+    const userId = stateData.user_id
+    
+    if (!creatorUniqueIdentifier && userId) {
+      console.log('[youtube-callback] creator_unique_identifier not in state, fetching from creator profile...')
+      const supabase = await createClient()
+      const { data: profiles, error: profileError } = await supabase
+        .from('creator_profiles')
+        .select('unique_identifier')
+        .limit(1)
+        .order('created_at', { ascending: false })
+      
+      if (!profileError && profiles && profiles.length > 0) {
+        creatorUniqueIdentifier = profiles[0].unique_identifier
+        console.log('[youtube-callback] Found creator_unique_identifier from profile:', creatorUniqueIdentifier)
+      }
+    }
+
+    // If still no creator_unique_identifier, try to get from getCurrentCreator
+    if (!creatorUniqueIdentifier) {
+      try {
+        const { getCurrentCreator } = await import('@/lib/db/creator')
+        const creator = await getCurrentCreator()
+        if (creator) {
+          creatorUniqueIdentifier = creator.unique_identifier
+          console.log('[youtube-callback] Found creator_unique_identifier from getCurrentCreator:', creatorUniqueIdentifier)
+        }
+      } catch (e) {
+        console.warn('[youtube-callback] Could not get creator from getCurrentCreator:', e)
+      }
+    }
+
+    // If still no creator_unique_identifier, we can't proceed
+    if (!creatorUniqueIdentifier) {
+      console.error('[youtube-callback] No creator_unique_identifier found - cannot store tokens')
+      return NextResponse.redirect(
+        new URL('/settings/connections?error=no_creator_profile', request.url)
+      )
+    }
+
+    // Update stateData with resolved creator_unique_identifier
+    const resolvedStateData = {
+      creator_unique_identifier: creatorUniqueIdentifier,
+      user_id: userId,
     }
 
     const clientId = process.env.YOUTUBE_CLIENT_ID
@@ -115,16 +162,53 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Check if tokens already exist for this creator
-    const { data: existing } = await serviceClient
-      .from('youtube_tokens')
-      .select('user_id')
-      .eq('user_id', stateData.user_id)
+    // Try new airpublisher_youtube_tokens table first, fallback to youtube_tokens
+    const creatorId = resolvedStateData.creator_unique_identifier
+    
+    // First try new table, fallback to old table if it doesn't exist
+    let tableName = 'airpublisher_youtube_tokens'
+    let useNewTable = true
+    
+    // Check if new table exists by trying a simple query
+    const { error: tableCheckError } = await serviceClient
+      .from('airpublisher_youtube_tokens')
+      .select('id')
+      .limit(1)
+    
+    if (tableCheckError && tableCheckError.code === '42P01') {
+      // Table doesn't exist, use old table
+      console.warn('[youtube-callback] airpublisher_youtube_tokens table not found, using youtube_tokens')
+      tableName = 'youtube_tokens'
+      useNewTable = false
+    }
+    
+    // Check if tokens already exist
+    const lookupField = useNewTable && creatorId ? 'creator_unique_identifier' : 'user_id'
+    const lookupValue = useNewTable && creatorId ? creatorId : (resolvedStateData.user_id || 'null_user_id_dev')
+    
+    const { data: existing, error: lookupError } = await serviceClient
+      .from(tableName)
+      .select('id, user_id, creator_unique_identifier')
+      .eq(lookupField, lookupValue)
       .maybeSingle()
+    
+    if (lookupError && lookupError.code !== 'PGRST116') {
+      console.error('[youtube-callback] Error looking up existing tokens:', lookupError)
+    }
 
-    const tokenData: any = {
-      user_id: stateData.user_id,
-      creator_unique_identifier: stateData.creator_unique_identifier, // Store for easier lookup
+    const tokenData: any = useNewTable ? {
+      user_id: resolvedStateData.user_id,
+      creator_unique_identifier: creatorId,
+      google_access_token: access_token,
+      google_refresh_token: refresh_token || null,
+      token_type: 'Bearer',
+      scope: scope || null,
+      expires_at: expiresAt,
+      handle: channelTitle,
+      channel_id: channelId,
+      channel_title: channelTitle,
+    } : {
+      user_id: resolvedStateData.user_id || null,
       google_access_token: access_token,
       google_refresh_token: refresh_token || null,
       token_type: 'Bearer',
@@ -133,33 +217,68 @@ export async function GET(request: Request) {
       updated_at: new Date().toISOString(),
       handle: channelTitle,
       channel_id: channelId,
+      google_access_token_secret_id: null,
+      google_refresh_token_secret_id: null,
     }
 
     if (existing) {
       // Update existing tokens
+      console.log('[youtube-callback] Updating existing tokens:', { id: existing.id, tableName })
       const { error: updateError } = await serviceClient
-        .from('youtube_tokens')
+        .from(tableName)
         .update(tokenData as Record<string, any>)
-        .eq('user_id', stateData.user_id)
+        .eq('id', existing.id)
 
       if (updateError) {
-        console.error('Error updating YouTube tokens:', updateError)
+        console.error('[youtube-callback] Error updating YouTube tokens:', {
+          error: updateError,
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+        })
         return NextResponse.redirect(
-          new URL('/settings/connections?error=update_failed', request.url)
+          new URL(`/settings/connections?error=update_failed&details=${encodeURIComponent(updateError.message || 'Unknown error')}`, request.url)
         )
       }
+      
+      console.log('[youtube-callback] ✅ Successfully updated YouTube tokens')
     } else {
       // Insert new tokens
-      const { error: insertError } = await serviceClient
-        .from('youtube_tokens')
+      console.log('[youtube-callback] Inserting new tokens:', {
+        tableName,
+        userId: tokenData.user_id,
+        creatorUniqueIdentifier: tokenData.creator_unique_identifier || 'N/A',
+        hasAccessToken: !!tokenData.google_access_token,
+        hasChannelId: !!tokenData.channel_id,
+      })
+      
+      const { data: insertData, error: insertError } = await serviceClient
+        .from(tableName)
         .insert(tokenData as Record<string, any>)
+        .select()
+        .single()
 
       if (insertError) {
-        console.error('Error inserting YouTube tokens:', insertError)
+        console.error('[youtube-callback] Error inserting YouTube tokens:', {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          tableName,
+          tokenDataKeys: Object.keys(tokenData),
+        })
         return NextResponse.redirect(
-          new URL('/settings/connections?error=insert_failed', request.url)
+          new URL(`/settings/connections?error=insert_failed&details=${encodeURIComponent(insertError.message || 'Unknown error')}`, request.url)
         )
       }
+      
+      console.log('[youtube-callback] ✅ Successfully inserted YouTube tokens:', {
+        id: insertData?.id,
+        userId: insertData?.user_id,
+        creatorId: insertData?.creator_unique_identifier,
+      })
     }
 
     // Success! Redirect to connections page

@@ -8,33 +8,70 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
-          )
-          response = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
+  try {
+    // Debug: Check what cookies are coming in
+    const incomingCookies = request.cookies.getAll()
+    const supabaseCookies = incomingCookies.filter(c => 
+      c.name.startsWith('sb-') || 
+      c.name.includes('supabase') ||
+      c.name.includes('auth')
+    )
+    
+    if (supabaseCookies.length > 0) {
+      console.log('[Middleware] Found Supabase cookies:', supabaseCookies.map(c => `${c.name}=${c.value.substring(0, 20)}...`).join(', '))
+    } else {
+      console.log('[Middleware] ⚠️ No Supabase cookies in request. All cookies:', incomingCookies.map(c => c.name).join(', '))
     }
-  )
+    
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              request.cookies.set(name, value)
+              response.cookies.set(name, value, options)
+              console.log('[Middleware] Setting cookie in response:', name, 'value length:', value?.length || 0)
+            })
+          },
+        },
+      }
+    )
 
-  // Refresh session if expired
-  await supabase.auth.getUser()
+    // Try getSession first (more reliable than getUser)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (session) {
+      console.log('[Middleware] ✅ Session found for user:', session.user.id)
+    } else {
+      // Fallback to getUser
+      const { data: { user }, error } = await supabase.auth.getUser()
+      
+      if (error) {
+        console.log('[Middleware] Session refresh error (non-blocking):', error.message)
+        if (sessionError) {
+          console.log('[Middleware] Session error:', sessionError.message)
+        }
+      } else if (user) {
+        console.log('[Middleware] ✅ User found via getUser:', user.id)
+      } else {
+        console.log('[Middleware] No user in session (might be logged out)')
+      }
+    }
 
-  return response
+    // Don't redirect in middleware - let the pages handle their own auth checks
+    // Middleware is just for refreshing the session
+
+    return response
+  } catch (error) {
+    console.error('[Middleware] Error:', error)
+    // On error, just pass through - don't block requests
+    return response
+  }
 }
 
 export const config = {
