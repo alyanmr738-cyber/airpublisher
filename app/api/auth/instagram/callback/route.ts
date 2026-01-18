@@ -18,25 +18,44 @@ export async function GET(request: Request) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
 
+    // Detect base URL for redirects (ngrok or localhost) - used for early error redirects
+    const requestUrl = new URL(request.url)
+    let baseUrlForRedirects = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    // If request is coming through ngrok, use that
+    if (requestUrl.host && requestUrl.host.includes('ngrok')) {
+      const protocol = requestUrl.protocol.replace(':', '') || 'https'
+      baseUrlForRedirects = `${protocol}://${requestUrl.host}`
+    } else {
+      // Check headers for ngrok
+      const forwardedHost = request.headers.get('x-forwarded-host')
+      const hostHeader = request.headers.get('host')
+      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+      const detectedHost = forwardedHost || hostHeader
+      if (detectedHost && detectedHost.includes('ngrok')) {
+        baseUrlForRedirects = `${forwardedProto}://${detectedHost}`
+      }
+    }
+
     if (error) {
       return NextResponse.redirect(
-        new URL(`/settings/connections?error=${encodeURIComponent(error)}`, request.url)
+        new URL(`/settings/connections?error=${encodeURIComponent(error)}`, baseUrlForRedirects)
       )
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/settings/connections?error=missing_code', request.url)
+        new URL('/settings/connections?error=missing_code', baseUrlForRedirects)
       )
     }
 
-    // Decode state to get creator info
-    let stateData: { creator_unique_identifier?: string; user_id?: string }
+    // Decode state to get creator info and redirect_uri
+    let stateData: { creator_unique_identifier?: string; user_id?: string; redirect_uri?: string }
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
     } catch {
       return NextResponse.redirect(
-        new URL('/settings/connections?error=invalid_state', request.url)
+        new URL('/settings/connections?error=invalid_state', baseUrlForRedirects)
       )
     }
 
@@ -77,7 +96,7 @@ export async function GET(request: Request) {
     if (!creatorUniqueIdentifier) {
       console.error('[instagram-callback] No creator_unique_identifier found - cannot store tokens')
       return NextResponse.redirect(
-        new URL('/settings/connections?error=no_creator_profile', request.url)
+        new URL('/settings/connections?error=no_creator_profile', baseUrlForRedirects)
       )
     }
 
@@ -87,19 +106,74 @@ export async function GET(request: Request) {
       user_id: userId,
     }
 
-    const appId = process.env.META_APP_ID || process.env.INSTAGRAM_APP_ID
-    const appSecret = process.env.META_APP_SECRET || process.env.INSTAGRAM_APP_SECRET
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/instagram/callback`
+    // Instagram Business Login uses Instagram App ID and Secret
+    // Get from: Instagram > API setup with Instagram login > Business login settings
+    // NOT from Meta App settings (those are different)
+    // Hardcode all IDs/secrets as fallback since .env.local isn't loading properly
+    const appId = process.env.INSTAGRAM_APP_ID || '836687999185692' || process.env.META_APP_ID || '771396602627794'
+    const appSecret = process.env.INSTAGRAM_APP_SECRET || '4691b6a3b97ab0dcaec41b218e4321c1' || process.env.META_APP_SECRET || '67b086a74833746df6a0a7ed0b50f867'
+    
+    // Get redirect URI - use the one from state if available (ensures exact match with OAuth request)
+    // Otherwise detect ngrok from request
+    let redirectUri: string
+    
+    if (stateData.redirect_uri) {
+      // Use the exact redirect URI from the OAuth request (stored in state)
+      redirectUri = stateData.redirect_uri
+      console.log('[instagram-callback] ✅ Using redirect URI from state (exact match):', redirectUri)
+      // Extract baseUrl from redirectUri for later error redirects
+      baseUrlForRedirects = redirectUri.replace('/api/auth/instagram/callback', '')
+    } else {
+      // Fallback: detect from request (for backward compatibility)
+      const fallbackRequestUrl = new URL(request.url)
+      let fallbackBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      
+      // If request is coming through ngrok, use that
+      if (fallbackRequestUrl.host && fallbackRequestUrl.host.includes('ngrok')) {
+        const protocol = fallbackRequestUrl.protocol.replace(':', '') || 'https'
+        fallbackBaseUrl = `${protocol}://${fallbackRequestUrl.host}`
+        console.log('[instagram-callback] ✅ Detected ngrok from request URL:', fallbackBaseUrl)
+      } else {
+        // Check headers for ngrok
+        const forwardedHost = request.headers.get('x-forwarded-host')
+        const hostHeader = request.headers.get('host')
+        const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+        const detectedHost = forwardedHost || hostHeader
+        if (detectedHost && detectedHost.includes('ngrok')) {
+          fallbackBaseUrl = `${forwardedProto}://${detectedHost}`
+          console.log('[instagram-callback] ✅ Detected ngrok from headers:', fallbackBaseUrl)
+        }
+      }
+      
+      redirectUri = `${fallbackBaseUrl}/api/auth/instagram/callback`
+      baseUrlForRedirects = fallbackBaseUrl
+      console.log('[instagram-callback] Using redirect URI (detected):', redirectUri)
+    }
 
     if (!appId || !appSecret) {
+      console.error('[instagram-callback] Missing Instagram App ID or Secret:', {
+        hasINSTAGRAM_APP_ID: !!process.env.INSTAGRAM_APP_ID,
+        hasINSTAGRAM_APP_SECRET: !!process.env.INSTAGRAM_APP_SECRET,
+        hasMETA_APP_ID: !!process.env.META_APP_ID,
+        hasMETA_APP_SECRET: !!process.env.META_APP_SECRET,
+        hint: 'Get Instagram App ID and Secret from Meta Dashboard: Instagram > API setup with Instagram login > Business login settings',
+      })
       return NextResponse.redirect(
-        new URL('/settings/connections?error=oauth_not_configured', request.url)
+        new URL('/settings/connections?error=oauth_not_configured', baseUrlForRedirects)
       )
     }
 
     // Step 1: Exchange code for short-lived access token
     // Instagram Business Login uses Instagram's own token endpoint, not Facebook's
     // See: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
+    console.log('[instagram-callback] Token exchange request:', {
+      appId: appId ? `${appId.substring(0, 6)}...` : 'NOT SET',
+      hasAppSecret: !!appSecret,
+      redirectUri,
+      codeLength: code?.length || 0,
+      grantType: 'authorization_code',
+    })
+    
     const tokenResponse = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
       headers: {
@@ -116,9 +190,29 @@ export async function GET(request: Request) {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
-      console.error('Token exchange error:', errorData)
+      let errorMessage = 'Token exchange failed'
+      try {
+        const errorJson = JSON.parse(errorData)
+        errorMessage = errorJson.error_message || errorJson.error || errorData
+        console.error('[instagram-callback] Token exchange error details:', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorJson,
+          redirectUri: redirectUri,
+          appId: appId ? `${appId.substring(0, 6)}...` : 'NOT SET',
+          hasAppSecret: !!appSecret,
+        })
+      } catch {
+        console.error('[instagram-callback] Token exchange error (raw):', errorData)
+        console.error('[instagram-callback] Request details:', {
+          redirectUri,
+          appId: appId ? `${appId.substring(0, 6)}...` : 'NOT SET',
+          hasAppSecret: !!appSecret,
+          codeLength: code?.length || 0,
+        })
+      }
       return NextResponse.redirect(
-        new URL('/settings/connections?error=token_exchange_failed', request.url)
+        new URL(`/settings/connections?error=token_exchange_failed&details=${encodeURIComponent(errorMessage)}`, baseUrlForRedirects)
       )
     }
 
@@ -141,7 +235,7 @@ export async function GET(request: Request) {
     if (!shortLivedToken) {
       console.error('Token response format:', JSON.stringify(tokenData, null, 2))
       return NextResponse.redirect(
-        new URL('/settings/connections?error=no_access_token', request.url)
+        new URL('/settings/connections?error=no_access_token', baseUrlForRedirects)
       )
     }
 
@@ -200,56 +294,114 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Try new airpublisher_instagram_tokens table first, fallback to instagram_tokens
+    let useNewTable = true
+    let tableName = 'airpublisher_instagram_tokens'
+    let lookupField = 'creator_unique_identifier'
+
+    // Check if new table exists by trying to query it
+    const { error: tableCheckError } = await serviceClient
+      .from('airpublisher_instagram_tokens')
+      .select('id')
+      .limit(1)
+    
+    if (tableCheckError && tableCheckError.code === '42P01') {
+      // Table doesn't exist, use old table
+      useNewTable = false
+      tableName = 'instagram_tokens'
+      lookupField = 'user_id'
+      console.log('[instagram-callback] New table not found, using old instagram_tokens table')
+    }
+
+    // Prepare token record based on which table we're using
+    let tokenRecord: any = {}
+    
+    if (useNewTable) {
+      // New table structure (airpublisher_instagram_tokens)
+      // Note: facebook_access_token is required (NOT NULL), so we use longLivedToken there
+      tokenRecord = {
+        user_id: resolvedStateData.user_id || null,
+        creator_unique_identifier: resolvedStateData.creator_unique_identifier,
+        facebook_access_token: longLivedToken, // Required field - Instagram Business Login uses this token
+        instagram_access_token: longLivedToken, // Also store in instagram_access_token
+        instagram_id: instagramBusinessAccountId || 'pending',
+        username: username,
+        token_type: 'Bearer',
+        expires_at: expiresAt,
+        account_type: 'BUSINESS', // Instagram Business Login
+      }
+    } else {
+      // Old table structure (no creator_unique_identifier)
+      tokenRecord = {
+        user_id: resolvedStateData.user_id || null,
+        instagram_id: instagramBusinessAccountId || 'pending',
+        access_token: longLivedToken,
+        username: username,
+        updated_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        instagram_business_account_id: instagramBusinessAccountId,
+        page_id: null,
+      }
+    }
+
+    // Check if record exists
     const { data: existing } = await serviceClient
-      .from('instagram_tokens')
-      .select('user_id')
-      .eq('user_id', resolvedStateData.user_id || 'null_user_id_dev')
+      .from(tableName)
+      .select('id')
+      .eq(lookupField, useNewTable ? resolvedStateData.creator_unique_identifier : (resolvedStateData.user_id || 'null_user_id_dev'))
       .maybeSingle()
 
-    const tokenRecord = {
-      user_id: resolvedStateData.user_id || null,
-      creator_unique_identifier: resolvedStateData.creator_unique_identifier, // Store for easier lookup
-      instagram_id: instagramBusinessAccountId || 'pending',
-      access_token: longLivedToken,
-      username: username,
-      updated_at: new Date().toISOString(),
-      expires_at: expiresAt,
-      instagram_business_account_id: instagramBusinessAccountId,
-      page_id: pageId,
-    } as any
-
     if (existing) {
+      // Update existing record
       const { error: updateError } = await serviceClient
-        .from('instagram_tokens')
+        .from(tableName)
         .update(tokenRecord as Record<string, any>)
-        .eq('user_id', resolvedStateData.user_id || 'null_user_id_dev')
+        .eq(lookupField, useNewTable ? resolvedStateData.creator_unique_identifier : (resolvedStateData.user_id || 'null_user_id_dev'))
 
       if (updateError) {
-        console.error('Error updating Instagram tokens:', updateError)
+        console.error(`Error updating Instagram tokens in ${tableName}:`, updateError)
+        console.error('Token record keys:', Object.keys(tokenRecord))
         return NextResponse.redirect(
-          new URL('/settings/connections?error=update_failed', request.url)
+          new URL('/settings/connections?error=update_failed', baseUrlForRedirects)
         )
       }
     } else {
+      // Insert new record
       const { error: insertError } = await serviceClient
-        .from('instagram_tokens')
+        .from(tableName)
         .insert(tokenRecord as Record<string, any>)
 
       if (insertError) {
-        console.error('Error inserting Instagram tokens:', insertError)
+        console.error(`Error inserting Instagram tokens into ${tableName}:`, insertError)
+        console.error('Error details:', {
+          code: insertError.code,
+          message: insertError.message,
+          hint: insertError.hint,
+          table: tableName,
+          tokenRecordKeys: Object.keys(tokenRecord),
+        })
         return NextResponse.redirect(
-          new URL('/settings/connections?error=insert_failed', request.url)
+          new URL('/settings/connections?error=insert_failed', baseUrlForRedirects)
         )
       }
     }
 
+    console.log(`✅ Successfully stored Instagram tokens in ${tableName}`)
+
     return NextResponse.redirect(
-      new URL('/settings/connections?success=instagram_connected', request.url)
+      new URL('/settings/connections?success=instagram_connected', baseUrlForRedirects)
     )
   } catch (error) {
     console.error('Instagram OAuth callback error:', error)
+    // Get baseUrl again in catch block
+    const catchRequestUrl = new URL(request.url)
+    let catchBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    if (catchRequestUrl.host && catchRequestUrl.host.includes('ngrok')) {
+      const protocol = catchRequestUrl.protocol.replace(':', '') || 'https'
+      catchBaseUrl = `${protocol}://${catchRequestUrl.host}`
+    }
     return NextResponse.redirect(
-      new URL('/settings/connections?error=callback_error', request.url)
+      new URL('/settings/connections?error=callback_error', catchBaseUrl)
     )
   }
 }

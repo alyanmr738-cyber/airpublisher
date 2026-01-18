@@ -65,9 +65,8 @@ export async function POST(request: NextRequest) {
       handles: display_name || `user_${userId.slice(0, 8)}`,
     }
     
-    if (niche !== undefined) {
-      profileData.Niche = niche || null
-    }
+    // Note: Niche should be stored in creator_profiles table (shared schema), not here
+    // airpublisher_creator_profiles only stores AIR Publisher specific fields
     if (avatar_url !== undefined) {
       profileData.profile_pic_url = avatar_url || null
     }
@@ -98,7 +97,6 @@ export async function POST(request: NextRequest) {
       profile: {
         unique_identifier: result.data.creator_unique_identifier,
         handles: result.data.handles,
-        Niche: result.data.Niche,
         profile_pic_url: result.data.profile_pic_url,
       },
     })

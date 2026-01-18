@@ -71,17 +71,59 @@ export default function LoginPage() {
         return
       }
 
-      if (result.data?.user) {
+      if (result.data?.user && result.data.session) {
         console.log('User signed in successfully:', result.data.user.id)
         console.log('Session exists:', !!result.data.session)
         
-        // Wait a moment for session to be set in cookies
-        await new Promise(resolve => setTimeout(resolve, 300))
+        // Sync session to cookies for server-side auth
+        try {
+          const syncResponse = await fetch('/api/auth/sync-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              access_token: result.data.session.access_token,
+              refresh_token: result.data.session.refresh_token,
+            }),
+          })
+
+          if (syncResponse.ok) {
+            console.log('✅ Session synced to cookies')
+          } else {
+            console.warn('⚠️ Could not sync session to cookies, but continuing...')
+          }
+        } catch (e) {
+          console.warn('Could not sync session to cookies:', e)
+        }
+
+        // Wait a moment for cookies to be set
+        await new Promise(resolve => setTimeout(resolve, 200))
         
         // Verify session is available before redirecting
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          console.log('Session confirmed, redirecting to dashboard...')
+          console.log('Session confirmed, fetching profile...')
+          
+          // Fetch profile to ensure cookie is set
+          try {
+            const profileResponse = await fetch('/api/profile/me', {
+              method: 'GET',
+              credentials: 'include',
+            })
+            
+            if (profileResponse.ok) {
+              const profileData = await profileResponse.json()
+              console.log('Profile fetched:', profileData.profile?.unique_identifier || 'No profile yet')
+            } else {
+              console.log('No profile found yet - user will be prompted to create one')
+            }
+          } catch (e) {
+            console.warn('Could not fetch profile after login:', e)
+          }
+          
+          console.log('Redirecting to dashboard...')
           window.location.href = '/dashboard'
         } else {
           console.warn('Session not available yet, waiting...')

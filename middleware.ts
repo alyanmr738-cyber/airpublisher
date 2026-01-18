@@ -42,20 +42,29 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // Try getSession first (more reliable than getUser)
+    // First, try to get the session from the cookie
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     if (session) {
       console.log('[Middleware] ✅ Session found for user:', session.user.id)
+      // Refresh if needed (this updates cookies if tokens are close to expiring)
+      try {
+        await supabase.auth.refreshSession()
+      } catch (e) {
+        // Refresh failed, but we have a session so continue
+        console.log('[Middleware] Could not refresh session (non-critical):', e)
+      }
     } else {
-      // Fallback to getUser
+      // No session from cookie - try to refresh from refresh token
+      if (sessionError) {
+        console.log('[Middleware] Session error:', sessionError.message)
+      }
+      
+      // Try getUser as fallback (this will attempt to refresh if possible)
       const { data: { user }, error } = await supabase.auth.getUser()
       
       if (error) {
-        console.log('[Middleware] Session refresh error (non-blocking):', error.message)
-        if (sessionError) {
-          console.log('[Middleware] Session error:', sessionError.message)
-        }
+        console.log('[Middleware] getUser error (non-blocking):', error.message)
       } else if (user) {
         console.log('[Middleware] ✅ User found via getUser:', user.id)
       } else {

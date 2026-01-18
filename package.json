@@ -9,18 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@nangohq/frontend": "^0.0.1",
-    "@nangohq/node": "^0.0.1",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.39.0",
-    "@supabase/ssr": "^0.1.0",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.0.6",
+    "lucide-react": "^0.309.0",
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.49.2",
-    "date-fns": "^3.0.6",
-    "lucide-react": "^0.309.0",
     "recharts": "^2.10.3",
-    "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
@@ -35,4 +33,3 @@
     "typescript": "^5"
   }
 }
-

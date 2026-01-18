@@ -143,7 +143,7 @@ export async function getCurrentCreator(uniqueIdentifier?: string) {
             return {
               unique_identifier: profile.creator_unique_identifier,
               display_name: profile.handles || null,
-              niche: profile.Niche || null,
+              niche: null, // Niche is stored in creator_profiles (shared schema), not here
               avatar_url: profile.profile_pic_url || null,
               created_at: profile.created_at,
               updated_at: profile.updated_at,
@@ -164,7 +164,7 @@ export async function getCurrentCreator(uniqueIdentifier?: string) {
             return {
               unique_identifier: profile.creator_unique_identifier,
               display_name: profile.handles || null,
-              niche: profile.Niche || null,
+              niche: null, // Niche is stored in creator_profiles (shared schema), not here
               avatar_url: profile.profile_pic_url || null,
               created_at: profile.created_at,
               updated_at: profile.updated_at,

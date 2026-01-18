@@ -53,32 +53,83 @@ export async function GET(request: Request) {
       NODE_ENV: process.env.NODE_ENV,
     })
 
-    const appId = process.env.META_APP_ID || process.env.INSTAGRAM_APP_ID
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/instagram/callback`
+    // Instagram Business Login uses Instagram App ID (not Meta App ID)
+    // Get from: Instagram > API setup with Instagram login > Business login settings
+    // Hardcode all IDs/secrets as fallback since .env.local isn't loading properly
+    const appId = process.env.INSTAGRAM_APP_ID || '836687999185692' || process.env.META_APP_ID || '771396602627794'
+    // Get redirect URI - detect ngrok from request, fallback to NEXT_PUBLIC_APP_URL or localhost
+    const requestUrl = new URL(request.url)
+    const headers = request.headers
+    const forwardedHost = headers.get('x-forwarded-host')
+    const hostHeader = headers.get('host')
+    const forwardedProto = headers.get('x-forwarded-proto') || 'https'
+    
+    // Detect base URL - prioritize ngrok detection, then NEXT_PUBLIC_APP_URL, then localhost
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    // Check if request is coming through ngrok (highest priority)
+    const detectedHost = forwardedHost || hostHeader || requestUrl.host
+    if (detectedHost && detectedHost.includes('ngrok')) {
+      const protocol = forwardedProto || requestUrl.protocol.replace(':', '') || 'https'
+      baseUrl = `${protocol}://${detectedHost}`
+      console.log('[Instagram OAuth] ✅ Detected ngrok from request:', baseUrl)
+    } else if (process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL.includes('ngrok')) {
+      // Fallback: use NEXT_PUBLIC_APP_URL if it contains ngrok
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL
+      console.log('[Instagram OAuth] ✅ Using ngrok URL from NEXT_PUBLIC_APP_URL:', baseUrl)
+    } else {
+      // Default to localhost for local development
+      baseUrl = 'http://localhost:3000'
+      console.log('[Instagram OAuth] Using localhost for redirect URI')
+    }
+    
+    const redirectUri = `${baseUrl}/api/auth/instagram/callback`
+    
+    // Debug: Log the redirect URI being used
+    console.log('[Instagram OAuth] Request URL:', requestUrl.toString())
+    console.log('[Instagram OAuth] Request headers:', {
+      'x-forwarded-host': forwardedHost,
+      'host': hostHeader,
+      'x-forwarded-proto': forwardedProto,
+    })
+    console.log('[Instagram OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL || 'NOT SET')
+    console.log('[Instagram OAuth] Base URL:', baseUrl)
+    console.log('[Instagram OAuth] Full redirect URI:', redirectUri)
+    
+    // Debug logging - Check all Instagram-related env vars
+    console.log('[Instagram OAuth] Environment variables check:', {
+      INSTAGRAM_APP_ID: process.env.INSTAGRAM_APP_ID ? `SET (${process.env.INSTAGRAM_APP_ID.substring(0, 6)}...)` : 'NOT SET',
+      INSTAGRAM_APP_SECRET: process.env.INSTAGRAM_APP_SECRET ? 'SET (hidden)' : 'NOT SET',
+      META_APP_ID: process.env.META_APP_ID ? `SET (${process.env.META_APP_ID.substring(0, 6)}...)` : 'NOT SET',
+    })
+    console.log('[Instagram OAuth] App ID being used:', appId ? `${appId.substring(0, 6)}...` : 'NOT SET')
+    console.log('[Instagram OAuth] App ID source:', process.env.INSTAGRAM_APP_ID ? 'INSTAGRAM_APP_ID' : (process.env.META_APP_ID ? 'META_APP_ID' : 'NONE'))
+    console.log('[Instagram OAuth] Redirect URI:', redirectUri)
     
     if (!appId) {
-      console.error('[Instagram OAuth] Missing app ID. Available env vars:', {
-        META_APP_ID: process.env.META_APP_ID ? 'SET (hidden)' : 'NOT SET',
+      console.error('[Instagram OAuth] Missing Instagram App ID. Available env vars:', {
         INSTAGRAM_APP_ID: process.env.INSTAGRAM_APP_ID ? 'SET (hidden)' : 'NOT SET',
+        META_APP_ID: process.env.META_APP_ID ? 'SET (hidden)' : 'NOT SET',
         allEnvKeys: Object.keys(process.env).filter(key => key.includes('META') || key.includes('INSTAGRAM') || key.includes('APP')),
       })
       return NextResponse.json(
         { 
-          error: 'Instagram OAuth not configured. Please set META_APP_ID or INSTAGRAM_APP_ID in environment variables.',
+          error: 'Instagram OAuth not configured. Please set INSTAGRAM_APP_ID in environment variables (found in Instagram > API setup with Instagram login > Business login settings).',
           debug: {
-            hasMETA_APP_ID: !!process.env.META_APP_ID,
             hasINSTAGRAM_APP_ID: !!process.env.INSTAGRAM_APP_ID,
-            hint: 'Make sure you added the variables to .env.local and restarted the dev server',
+            hasMETA_APP_ID: !!process.env.META_APP_ID,
+            hint: 'Get Instagram App ID from Meta Dashboard: Instagram > API setup with Instagram login > Business login settings',
           }
         },
         { status: 500 }
       )
     }
 
-    // Generate state
+    // Generate state - include redirect_uri so callback can use the exact same one
     const state = Buffer.from(JSON.stringify({
       creator_unique_identifier: creator?.unique_identifier || null,
       user_id: user?.id || null,
+      redirect_uri: redirectUri, // Store redirect URI in state to ensure exact match
     })).toString('base64url')
 
     // Instagram API with Instagram Login - New scopes (replaces old ones as of Jan 27, 2025)
@@ -91,15 +142,18 @@ export async function GET(request: Request) {
       // 'instagram_business_manage_messages', // Manage messages
     ].join(',')
 
-    // Build OAuth URL - Using Instagram Business Login (direct Instagram OAuth)
-    // This uses Instagram's own OAuth endpoint, not Facebook's
+    // Build OAuth URL - Use Instagram's native OAuth endpoint
     // See: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
-    const authUrl = new URL('https://www.instagram.com/oauth/authorize')
+    // Endpoint: https://api.instagram.com/oauth/authorize (NOT Facebook OAuth)
+    const authUrl = new URL('https://api.instagram.com/oauth/authorize')
     authUrl.searchParams.set('client_id', appId)
     authUrl.searchParams.set('redirect_uri', redirectUri)
     authUrl.searchParams.set('scope', scopes)
     authUrl.searchParams.set('response_type', 'code')
     authUrl.searchParams.set('state', state)
+    
+    // Note: Instagram OAuth endpoint does NOT support config_id, display, or auth_type
+    // These are Facebook OAuth-specific parameters
 
     return NextResponse.redirect(authUrl.toString())
   } catch (error) {
