@@ -24,8 +24,8 @@ export async function GET(
     )
 
     // Get video to find creator
-    const { data: video, error: videoError } = await serviceClient
-      .from('air_publisher_videos')
+    const { data: video, error: videoError } = await (serviceClient
+      .from('air_publisher_videos') as any)
       .select('creator_unique_identifier')
       .eq('id', videoId)
       .single()

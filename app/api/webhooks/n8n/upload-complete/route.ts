@@ -70,8 +70,8 @@ export async function POST(request: Request) {
 
     // First, check if video exists
     console.log('[upload-complete] Checking if video exists:', video_id)
-    const { data: existingVideo, error: checkError } = await supabase
-      .from('air_publisher_videos')
+    const { data: existingVideo, error: checkError } = await (supabase
+      .from('air_publisher_videos') as any)
       .select('id, creator_unique_identifier, status, video_url')
       .eq('id', video_id)
       .maybeSingle()

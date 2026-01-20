@@ -86,8 +86,8 @@ export async function POST(
     let videoError = null
     
     try {
-      const { data, error } = await supabase
-        .from('air_publisher_videos')
+      const { data, error } = await (supabase
+        .from('air_publisher_videos') as any)
         .select('creator_unique_identifier, id, title')
         .eq('id', videoId)
         .single()
@@ -127,8 +127,8 @@ export async function POST(
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
 
-      const { data: serviceVideo, error: serviceError } = await serviceClient
-        .from('air_publisher_videos')
+      const { data: serviceVideo, error: serviceError } = await (serviceClient
+        .from('air_publisher_videos') as any)
         .select('creator_unique_identifier, id, title')
         .eq('id', videoId)
         .single()

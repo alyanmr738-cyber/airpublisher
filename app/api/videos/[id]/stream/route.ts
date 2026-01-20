@@ -29,8 +29,8 @@ export async function GET(
     let video = null
     let videoError = null
     
-    const { data, error } = await supabase
-      .from('air_publisher_videos')
+    const { data, error } = await (supabase
+      .from('air_publisher_videos') as any)
       .select('video_url')
       .eq('id', videoId)
       .single()
@@ -53,8 +53,8 @@ export async function GET(
             process.env.SUPABASE_SERVICE_ROLE_KEY!
           )
 
-          const { data: serviceVideo, error: serviceError } = await serviceClient
-            .from('air_publisher_videos')
+          const { data: serviceVideo, error: serviceError } = await (serviceClient
+            .from('air_publisher_videos') as any)
             .select('video_url')
             .eq('id', videoId)
             .single()

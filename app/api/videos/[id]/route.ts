@@ -37,8 +37,8 @@ export async function GET(
           process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
         
-        const { data: serviceVideo, error: serviceError } = await serviceClient
-          .from('air_publisher_videos')
+        const { data: serviceVideo, error: serviceError } = await (serviceClient
+          .from('air_publisher_videos') as any)
           .select('*')
           .eq('id', videoId)
           .single()

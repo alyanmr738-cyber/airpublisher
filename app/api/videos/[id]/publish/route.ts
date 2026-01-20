@@ -49,8 +49,8 @@ export async function POST(
 
     // Verify video ownership
     const supabase = await createClient()
-    const { data: video, error: videoError } = await supabase
-      .from('air_publisher_videos')
+    const { data: video, error: videoError } = await (supabase
+      .from('air_publisher_videos') as any)
       .select('creator_unique_identifier, platform_target')
       .eq('id', videoId)
       .single()

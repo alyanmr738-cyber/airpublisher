@@ -66,8 +66,8 @@ export async function POST(request: Request) {
     )
 
     // Get video details
-    const { data: video, error: videoError } = await serviceClient
-      .from('air_publisher_videos')
+    const { data: video, error: videoError } = await (serviceClient
+      .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', video_id)
       .single()
