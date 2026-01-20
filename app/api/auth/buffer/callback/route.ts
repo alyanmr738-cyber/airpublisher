@@ -95,8 +95,8 @@ export async function GET(request: Request) {
     )
 
     // Check if token already exists
-    const { data: existing } = await serviceClient
-      .from('buffer_tokens')
+    const { data: existing } = await (serviceClient
+      .from('buffer_tokens') as any)
       .select('user_id')
       .eq('user_id', stateData.user_id)
       .maybeSingle()
@@ -110,9 +110,9 @@ export async function GET(request: Request) {
     } as Record<string, any>
 
     if (existing) {
-      const { error: updateError } = await serviceClient
-        .from('buffer_tokens')
-        .update(tokenRecord as any)
+      const { error: updateError } = await (serviceClient
+        .from('buffer_tokens') as any)
+        .update(tokenRecord)
         .eq('user_id', stateData.user_id)
 
       if (updateError) {
@@ -123,8 +123,8 @@ export async function GET(request: Request) {
       }
     } else {
       tokenRecord.created_at = new Date().toISOString()
-      const { error: insertError } = await serviceClient
-        .from('buffer_tokens')
+      const { error: insertError } = await (serviceClient
+        .from('buffer_tokens') as any)
         .insert(tokenRecord)
 
       if (insertError) {
