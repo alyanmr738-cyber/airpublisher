@@ -46,11 +46,12 @@ export async function GET(request: Request) {
       const { data: profiles, error: profileError } = await supabase
         .from('creator_profiles')
         .select('unique_identifier')
+        .eq('user_id', userId)
         .limit(1)
         .order('created_at', { ascending: false })
       
       if (!profileError && profiles && profiles.length > 0) {
-        creatorUniqueIdentifier = profiles[0].unique_identifier
+        creatorUniqueIdentifier = (profiles[0] as { unique_identifier: string }).unique_identifier
         console.log('[youtube-callback] Found creator_unique_identifier from profile:', creatorUniqueIdentifier)
       }
     }
