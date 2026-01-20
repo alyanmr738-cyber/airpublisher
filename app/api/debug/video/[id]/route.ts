@@ -31,7 +31,7 @@ export async function GET(
       .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', videoId)
-      .maybeSingle()
+      .maybeSingle() as Promise<{ data: any; error: any }>)
 
     if (error) {
       return NextResponse.json({
@@ -49,19 +49,19 @@ export async function GET(
       })
     }
 
-    // Type assertion to fix TypeScript error - cast to any to bypass type checking
+    // Type assertion to fix TypeScript error
     const video: any = videoData
 
     return NextResponse.json({
       exists: true,
       video: {
-        id: video.id,
-        title: video.title,
-        status: video.status,
-        creator_unique_identifier: video.creator_unique_identifier,
-        platform_target: video.platform_target,
-        created_at: video.created_at,
-        posted_at: video.posted_at,
+        id: (video as any).id,
+        title: (video as any).title,
+        status: (video as any).status,
+        creator_unique_identifier: (video as any).creator_unique_identifier,
+        platform_target: (video as any).platform_target,
+        created_at: (video as any).created_at,
+        posted_at: (video as any).posted_at,
       },
     })
   } catch (error: any) {
