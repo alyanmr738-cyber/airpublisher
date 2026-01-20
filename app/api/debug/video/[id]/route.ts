@@ -27,7 +27,7 @@ export async function GET(
     )
 
     // Check if video exists
-    const { data: video, error } = await (serviceClient
+    const { data: videoData, error } = await (serviceClient
       .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', videoId)
@@ -41,13 +41,16 @@ export async function GET(
       })
     }
 
-    if (!video) {
+    if (!videoData) {
       return NextResponse.json({
         exists: false,
         message: 'Video not found in database',
         videoId,
       })
     }
+
+    // Type assertion to fix TypeScript error
+    const video = videoData as any
 
     return NextResponse.json({
       exists: true,
