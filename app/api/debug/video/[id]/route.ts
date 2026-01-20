@@ -26,28 +26,49 @@ export async function GET(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Check if video exists - completely bypass TypeScript type checking
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (serviceClient
+    // Check if video exists - use helper function to avoid TypeScript type inference issues
+    const queryResult = await (serviceClient
       .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', videoId)
-      .maybeSingle() as Promise<{ data: any; error: any }>)
+      .maybeSingle()
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const videoData: any = result?.data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const error: any = result?.error
+    // Helper function to safely extract video data
+    function getVideoData(result: unknown): {
+      id: string
+      title: string
+      status: string
+      creator_unique_identifier: string
+      platform_target: string
+      created_at: string
+      posted_at: string | null
+    } | null {
+      const r = result as { data?: any; error?: any }
+      if (r.error) return null
+      if (!r.data) return null
+      const v = r.data as any
+      return {
+        id: String(v?.id ?? ''),
+        title: String(v?.title ?? ''),
+        status: String(v?.status ?? ''),
+        creator_unique_identifier: String(v?.creator_unique_identifier ?? ''),
+        platform_target: String(v?.platform_target ?? ''),
+        created_at: String(v?.created_at ?? ''),
+        posted_at: v?.posted_at ? String(v.posted_at) : null,
+      }
+    }
 
-    if (error) {
+    const result = queryResult as { data?: any; error?: any }
+    if (result.error) {
       return NextResponse.json({
         exists: false,
-        error: error?.message || 'Unknown error',
-        code: error?.code || 'UNKNOWN',
+        error: result.error?.message || 'Unknown error',
+        code: result.error?.code || 'UNKNOWN',
       })
     }
 
-    if (!videoData) {
+    const video = getVideoData(queryResult)
+    if (!video) {
       return NextResponse.json({
         exists: false,
         message: 'Video not found in database',
@@ -55,21 +76,9 @@ export async function GET(
       })
     }
 
-    // Extract properties with explicit any casting to avoid TypeScript errors
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const video: any = videoData
-
     return NextResponse.json({
       exists: true,
-      video: {
-        id: String(video?.id ?? ''),
-        title: String(video?.title ?? ''),
-        status: String(video?.status ?? ''),
-        creator_unique_identifier: String(video?.creator_unique_identifier ?? ''),
-        platform_target: String(video?.platform_target ?? ''),
-        created_at: String(video?.created_at ?? ''),
-        posted_at: video?.posted_at ? String(video.posted_at) : null,
-      },
+      video,
     })
   } catch (error: any) {
     return NextResponse.json(
