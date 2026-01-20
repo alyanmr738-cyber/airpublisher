@@ -39,16 +39,18 @@ export async function POST(request: Request) {
     const supabase = await createClient()
 
     // Get video details
-    const { data: video, error: videoError } = await supabase
-      .from('air_publisher_videos')
+    const { data: videoData, error: videoError } = await (supabase
+      .from('air_publisher_videos') as any)
       .select('*, airpublisher_creator_profiles!inner(unique_identifier, user_id)')
       .eq('id', video_id)
       .single()
 
-    if (videoError || !video) {
+    if (videoError || !videoData) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
 
+    // Type assertion to fix TypeScript error
+    const video: any = videoData
     const creatorUniqueIdentifier = video.airpublisher_creator_profiles?.unique_identifier || video.creator_unique_identifier
 
     // Get platform tokens for the creator

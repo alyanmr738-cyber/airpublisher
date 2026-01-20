@@ -28,8 +28,8 @@ export async function GET(request: Request) {
 
     // Get scheduled videos that are due (including immediate posts)
     // Try new airpublisher_creator_profiles table first, fallback to creator_profiles
-    let { data: videos, error } = await supabase
-      .from('air_publisher_videos')
+    let { data: videos, error } = await (supabase
+      .from('air_publisher_videos') as any)
       .select(`
         *,
         airpublisher_creator_profiles!inner (
@@ -45,8 +45,8 @@ export async function GET(request: Request) {
 
     // If new table query fails, try old table
     if (error || !videos || videos.length === 0) {
-      const { data: fallbackVideos, error: fallbackError } = await supabase
-        .from('air_publisher_videos')
+      const { data: fallbackVideos, error: fallbackError } = await (supabase
+        .from('air_publisher_videos') as any)
         .select(`
           *,
           creator_profiles!inner (

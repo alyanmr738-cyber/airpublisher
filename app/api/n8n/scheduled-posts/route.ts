@@ -43,8 +43,8 @@ export async function GET(request: Request) {
 
     // If new table query fails, try old table
     if (error || !videos || videos.length === 0) {
-      const { data: fallbackVideos, error: fallbackError } = await supabase
-        .from('air_publisher_videos')
+      const { data: fallbackVideos, error: fallbackError } = await (supabase
+        .from('air_publisher_videos') as any)
         .select(`
           *,
           creator_profiles!inner (
