@@ -33,8 +33,8 @@ export async function GET(request: Request) {
     const supabase = await createClient()
 
     // Get video details
-    const { data: video, error: videoError } = await supabase
-      .from('air_publisher_videos')
+    const { data: video, error: videoError } = await (supabase
+      .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', videoId)
       .single()

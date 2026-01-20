@@ -27,8 +27,8 @@ export async function GET(
     )
 
     // Check if video exists
-    const { data: video, error } = await serviceClient
-      .from('air_publisher_videos')
+    const { data: video, error } = await (serviceClient
+      .from('air_publisher_videos') as any)
       .select('*')
       .eq('id', videoId)
       .maybeSingle()

@@ -25,10 +25,10 @@ export async function createProfileAction(profile: {
   display_name?: string | null
   niche?: string | null
   avatar_url?: string | null // This maps to profile_pic_url in your table
-  user_id?: string | null // Optional: pass user ID from client if server can't detect session
 }) {
   const supabase = await createClient()
   
+  // SECURITY: Always use authenticated user ID from session - NEVER trust client-provided user_id
   // Use getUser() directly (more reliable - validates token with Supabase server)
   // This is recommended by Supabase docs for server-side auth
   const {
@@ -49,32 +49,18 @@ export async function createProfileAction(profile: {
   console.log('[createProfileAction] Session exists:', !!session)
   console.log('[createProfileAction] User exists:', !!user)
   console.log('[createProfileAction] Auth error:', authError?.message || null)
-  console.log('[createProfileAction] Client-provided user_id:', profile.user_id || null)
 
-  // Use client-provided user_id if server can't detect session (development mode workaround)
-  let userId = user?.id || profile.user_id || null
-  
-  // In development, if we have a user_id from client, use it even if server can't detect session
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  // SECURITY FIX: Only use authenticated user ID - never accept client-provided user_id
+  const userId = user?.id || null
   
   if (!userId) {
-    if (authError && !isDevelopment) {
+    if (authError) {
       console.error('[createProfileAction] Auth error:', authError)
       throw new Error(`Authentication error: ${authError.message}`)
     }
     
-    if (!isDevelopment) {
-      console.error('[createProfileAction] No user found in session')
-      throw new Error('Unauthorized: Please sign in to create a profile. If you just signed in, try refreshing the page.')
-    } else {
-      // Development mode: try to continue with service role if we have user_id from client
-      if (profile.user_id) {
-        console.warn('[createProfileAction] ⚠️ Development mode: Using client-provided user_id:', profile.user_id)
-        userId = profile.user_id
-      } else {
-        throw new Error('No user ID available. Please sign in and try again.')
-      }
-    }
+    console.error('[createProfileAction] No user found in session')
+    throw new Error('Unauthorized: Please sign in to create a profile. If you just signed in, try refreshing the page.')
   }
 
   console.log('[createProfileAction] Creating profile for user:', userId, user?.email || 'email not available')
