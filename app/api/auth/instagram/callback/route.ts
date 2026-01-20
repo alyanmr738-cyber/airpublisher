@@ -346,17 +346,17 @@ export async function GET(request: Request) {
     }
 
     // Check if record exists
-    const { data: existing } = await serviceClient
-      .from(tableName)
+    const { data: existing } = await (serviceClient
+      .from(tableName) as any)
       .select('id')
       .eq(lookupField, useNewTable ? resolvedStateData.creator_unique_identifier : (resolvedStateData.user_id || 'null_user_id_dev'))
       .maybeSingle()
 
     if (existing) {
       // Update existing record
-      const { error: updateError } = await serviceClient
-        .from(tableName)
-        .update(tokenRecord as Record<string, any>)
+      const { error: updateError } = await (serviceClient
+        .from(tableName) as any)
+        .update(tokenRecord)
         .eq(lookupField, useNewTable ? resolvedStateData.creator_unique_identifier : (resolvedStateData.user_id || 'null_user_id_dev'))
 
       if (updateError) {
@@ -368,9 +368,9 @@ export async function GET(request: Request) {
       }
     } else {
       // Insert new record
-      const { error: insertError } = await serviceClient
-        .from(tableName)
-        .insert(tokenRecord as Record<string, any>)
+      const { error: insertError } = await (serviceClient
+        .from(tableName) as any)
+        .insert(tokenRecord)
 
       if (insertError) {
         console.error(`Error inserting Instagram tokens into ${tableName}:`, insertError)
