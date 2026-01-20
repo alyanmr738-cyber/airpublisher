@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     if (!existingVideo) {
       console.error('[upload-complete] Video not found in database:', video_id)
       console.error('[upload-complete] This might be a test/retry with an old video ID')
-      console.error('[upload-complete] Attempting to create video record if it doesn't exist...')
+      console.error('[upload-complete] Attempting to create video record if it does not exist')
       
       // If video doesn't exist, try to create it (in case it was deleted or never created)
       // This is a fallback - normally the video should exist before upload
