@@ -19,8 +19,8 @@ export async function GET(
     const supabase = await createClient()
 
     // Get all comments for the video
-    const { data: comments, error } = await supabase
-      .from('airpublisher_video_comments')
+    const { data: comments, error } = await (supabase
+      .from('airpublisher_video_comments') as any)
       .select('*')
       .eq('video_id', videoId)
       .order('created_at', { ascending: false })
@@ -93,8 +93,8 @@ export async function POST(
     const supabase = await createClient()
 
     // Insert comment
-    const { data: comment, error } = await supabase
-      .from('airpublisher_video_comments')
+    const { data: comment, error } = await (supabase
+      .from('airpublisher_video_comments') as any)
       .insert({
         video_id: videoId,
         creator_unique_identifier: creator.unique_identifier,

@@ -116,18 +116,18 @@ export default async function ConnectionsPage({
   if (creator?.unique_identifier) {
     // Try new tables with creator_unique_identifier (for YouTube, Instagram, TikTok)
     const [youtubeNew, instagramNew, tiktokNew] = await Promise.all([
-      supabase
-        .from('airpublisher_youtube_tokens')
+      (supabase
+        .from('airpublisher_youtube_tokens') as any)
         .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
-      supabase
-        .from('airpublisher_instagram_tokens')
+      (supabase
+        .from('airpublisher_instagram_tokens') as any)
         .select('user_id, creator_unique_identifier, instagram_id, username, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
-      supabase
-        .from('airpublisher_tiktok_tokens')
+      (supabase
+        .from('airpublisher_tiktok_tokens') as any)
         .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
@@ -153,8 +153,8 @@ export default async function ConnectionsPage({
     // If regular client failed (RLS or table doesn't exist), try service role
     if (!youtubeTokens.data && serviceClient && (youtubeNew.error || !youtubeNew.data)) {
       console.log('[ConnectionsPage] Trying service role for YouTube tokens...')
-      const { data: serviceData, error: serviceError } = await serviceClient
-        .from('airpublisher_youtube_tokens')
+      const { data: serviceData, error: serviceError } = await (serviceClient
+        .from('airpublisher_youtube_tokens') as any)
         .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
@@ -168,8 +168,8 @@ export default async function ConnectionsPage({
     }
 
     if (!instagramTokens.data && serviceClient && (instagramNew.error || !instagramNew.data)) {
-      const { data: serviceData } = await serviceClient
-        .from('airpublisher_instagram_tokens')
+      const { data: serviceData } = await (serviceClient
+        .from('airpublisher_instagram_tokens') as any)
         .select('user_id, creator_unique_identifier, instagram_id, username, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
@@ -177,8 +177,8 @@ export default async function ConnectionsPage({
     }
 
     if (!tiktokTokens.data && serviceClient && (tiktokNew.error || !tiktokNew.data)) {
-      const { data: serviceData } = await serviceClient
-        .from('airpublisher_tiktok_tokens')
+      const { data: serviceData } = await (serviceClient
+        .from('airpublisher_tiktok_tokens') as any)
         .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
@@ -188,8 +188,8 @@ export default async function ConnectionsPage({
 
   // Fallback to old tables if new tables didn't have tokens (or if no creator)
   if (!youtubeTokens.data && user) {
-    const oldYoutube = await supabase
-      .from('youtube_tokens')
+    const oldYoutube = await (supabase
+      .from('youtube_tokens') as any)
       .select('user_id, channel_id, handle, expires_at')
       .eq('user_id', user.id)
       .maybeSingle()
@@ -198,8 +198,8 @@ export default async function ConnectionsPage({
       youtubeTokens = oldYoutube
     } else if (serviceClient) {
       // Try service role for old table too
-      const { data: serviceData } = await serviceClient
-        .from('youtube_tokens')
+      const { data: serviceData } = await (serviceClient
+        .from('youtube_tokens') as any)
         .select('user_id, channel_id, handle, expires_at')
         .eq('user_id', user.id)
         .maybeSingle()
@@ -208,8 +208,8 @@ export default async function ConnectionsPage({
   }
 
   if (!instagramTokens.data && user) {
-    const oldInstagram = await supabase
-      .from('instagram_tokens')
+    const oldInstagram = await (supabase
+      .from('instagram_tokens') as any)
       .select('user_id, instagram_id, username, expires_at')
       .eq('user_id', user.id)
       .maybeSingle()
@@ -217,8 +217,8 @@ export default async function ConnectionsPage({
   }
 
   if (!tiktokTokens.data && user) {
-    const oldTiktok = await supabase
-      .from('tiktok_tokens')
+    const oldTiktok = await (supabase
+      .from('tiktok_tokens') as any)
       .select('user_id, tiktok_open_id, display_name, expires_at')
       .eq('user_id', user.id)
       .maybeSingle()

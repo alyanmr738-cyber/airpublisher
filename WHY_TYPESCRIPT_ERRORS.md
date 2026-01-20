@@ -1,8 +1,10 @@
-# Why These TypeScript Errors Are Happening
+i d# Why These TypeScript Errors Are Happening
 
 ## Root Cause
 
 These TypeScript errors occur because **tables exist in your Supabase database but are not defined in your TypeScript Database types**.
+
+**You ARE using airpublisher tables!** The problem is that the Database types file (`lib/supabase/types.ts`) is incomplete - it only has 4 tables defined, but your code uses many more.
 
 ## How It Works
 
@@ -11,14 +13,17 @@ These TypeScript errors occur because **tables exist in your Supabase database b
    - Only tables defined here are "known" to TypeScript
    - Currently includes: `creator_profiles`, `creator_posts`, `air_publisher_videos`, `air_leaderboards`
 
-2. **Missing Tables**:
-   - `buffer_tokens` ❌ (not in types)
-   - `instagram_tokens` ❌ (not in types)
-   - `youtube_tokens` ❌ (not in types)
-   - `tiktok_tokens` ❌ (not in types)
-   - `airpublisher_youtube_tokens` ❌ (not in types)
-   - `airpublisher_instagram_tokens` ❌ (not in types)
-   - `airpublisher_tiktok_tokens` ❌ (not in types)
+2. **Missing Tables** (that your code actually uses):
+   - `airpublisher_youtube_tokens` ❌ (used extensively, not in types)
+   - `airpublisher_instagram_tokens` ❌ (used extensively, not in types)
+   - `airpublisher_tiktok_tokens` ❌ (used extensively, not in types)
+   - `airpublisher_creator_profiles` ❌ (used in profile routes, not in types)
+   - `airpublisher_video_likes` ❌ (used in like API, not in types)
+   - `airpublisher_video_comments` ❌ (used in comments API, not in types)
+   - `buffer_tokens` ❌ (used in Buffer OAuth, not in types)
+   - `youtube_tokens` ❌ (old table, fallback, not in types)
+   - `instagram_tokens` ❌ (old table, fallback, not in types)
+   - `tiktok_tokens` ❌ (old table, fallback, not in types)
 
 3. **What TypeScript Does**:
    - When you call `.from('table_name')` where `table_name` is not in the Database types
@@ -79,7 +84,9 @@ export interface Database {
 
 - ✅ **Quick fixes applied**: All queries cast to `any` to bypass type checking
 - ⚠️ **Type safety lost**: No TypeScript checking for these tables
-- 💡 **Future improvement**: Add proper type definitions for all tables
+- 📊 **Tables in types**: Only 4 tables (`air_publisher_videos`, `air_leaderboards`, `creator_profiles`, `creator_posts`)
+- 📊 **Tables actually used**: ~15+ tables (most missing from types!)
+- 💡 **Future improvement**: Add proper type definitions for ALL tables being used
 
 ## How to Generate Types Properly
 

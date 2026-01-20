@@ -26,8 +26,8 @@ export async function POST(
     const supabase = await createClient()
 
     // Check if already liked
-    const { data: existingLike } = await supabase
-      .from('airpublisher_video_likes')
+    const { data: existingLike } = await (supabase
+      .from('airpublisher_video_likes') as any)
       .select('id')
       .eq('video_id', videoId)
       .eq('creator_unique_identifier', creator.unique_identifier)
@@ -35,8 +35,8 @@ export async function POST(
 
     if (existingLike) {
       // Unlike: Delete the like
-      const { error } = await supabase
-        .from('airpublisher_video_likes')
+      const { error } = await (supabase
+        .from('airpublisher_video_likes') as any)
         .delete()
         .eq('id', existingLike.id)
 
@@ -45,8 +45,8 @@ export async function POST(
       }
 
       // Get updated like count
-      const { count } = await supabase
-        .from('airpublisher_video_likes')
+      const { count } = await (supabase
+        .from('airpublisher_video_likes') as any)
         .select('*', { count: 'exact', head: true })
         .eq('video_id', videoId)
 
@@ -56,8 +56,8 @@ export async function POST(
       })
     } else {
       // Like: Insert new like
-      const { error } = await supabase
-        .from('airpublisher_video_likes')
+      const { error } = await (supabase
+        .from('airpublisher_video_likes') as any)
         .insert({
           video_id: videoId,
           creator_unique_identifier: creator.unique_identifier,
@@ -68,8 +68,8 @@ export async function POST(
       }
 
       // Get updated like count
-      const { count } = await supabase
-        .from('airpublisher_video_likes')
+      const { count } = await (supabase
+        .from('airpublisher_video_likes') as any)
         .select('*', { count: 'exact', head: true })
         .eq('video_id', videoId)
 
