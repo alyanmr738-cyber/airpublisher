@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/types'
 
+// Force dynamic rendering - this route uses database queries
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check videos with service role (bypasses RLS)
  * Only works in development mode

@@ -4,6 +4,9 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/types'
 import { cookies } from 'next/headers'
 
+// Force dynamic rendering - this route uses cookies
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check if we can query Supabase Auth users
  * This helps diagnose if the issue is with auth validation

@@ -6,6 +6,9 @@ import { UploadForm } from '@/components/upload/upload-form'
 import { getCurrentCreator } from '@/lib/db/creator'
 import Link from 'next/link'
 
+// Force dynamic rendering - this page uses searchParams
+export const dynamic = 'force-dynamic'
+
 export default async function UploadPage({
   searchParams,
 }: {

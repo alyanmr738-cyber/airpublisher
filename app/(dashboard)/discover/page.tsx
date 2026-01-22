@@ -2,6 +2,9 @@ import { getAllPostedVideos } from '@/lib/db/videos'
 import { getCreatorProfile } from '@/lib/db/creator'
 import { VideoFeed } from '@/components/discover/video-feed'
 
+// Force dynamic rendering - this page uses searchParams
+export const dynamic = 'force-dynamic'
+
 export default async function DiscoverPage({
   searchParams,
 }: {

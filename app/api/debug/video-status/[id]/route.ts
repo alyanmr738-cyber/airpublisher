@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/types'
 
+// Force dynamic rendering - this route uses dynamic params
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check video status
  * Only works in development mode

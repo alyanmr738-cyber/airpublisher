@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getCreatorByUserId } from '@/lib/db/creator'
 import { cookies } from 'next/headers'
 
+// Force dynamic rendering - this route uses cookies
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check profile lookup
  * GET /api/debug/profile-lookup

@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentCreator } from '@/lib/db/creator'
 import { getVideosByCreator } from '@/lib/db/videos'
 
+// Force dynamic rendering - this route uses cookies
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check why "My Videos" is empty
  * Only works in development mode

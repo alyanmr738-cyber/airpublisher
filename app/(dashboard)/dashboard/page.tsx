@@ -17,6 +17,9 @@ import { getVideosByCreator } from '@/lib/db/videos'
 import { getCreatorRank } from '@/lib/db/leaderboard'
 import { formatNumber, getRankBadgeColor, getRankBadgeIcon } from '@/lib/utils'
 
+// Force dynamic rendering - this page uses searchParams
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage({
   searchParams,
 }: {

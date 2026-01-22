@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+// Force dynamic rendering - this route reads environment variables
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to check environment variables
  * Only works in development mode
