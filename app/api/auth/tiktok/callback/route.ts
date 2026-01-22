@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/types'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 /**
  * TikTok OAuth callback
@@ -13,24 +14,8 @@ export async function GET(request: Request) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
 
-    // Detect base URL for redirects (ngrok or localhost)
-    const requestUrl = new URL(request.url)
-    let baseUrlForRedirects = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    
-    // If request is coming through ngrok, use that
-    if (requestUrl.host && requestUrl.host.includes('ngrok')) {
-      const protocol = requestUrl.protocol.replace(':', '') || 'https'
-      baseUrlForRedirects = `${protocol}://${requestUrl.host}`
-    } else {
-      // Check headers for ngrok
-      const forwardedHost = request.headers.get('x-forwarded-host')
-      const hostHeader = request.headers.get('host')
-      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-      const detectedHost = forwardedHost || hostHeader
-      if (detectedHost && detectedHost.includes('ngrok')) {
-        baseUrlForRedirects = `${forwardedProto}://${detectedHost}`
-      }
-    }
+    // Use getAppUrl() utility which properly detects Vercel, ngrok, or localhost
+    const baseUrlForRedirects = getAppUrl()
 
     if (error) {
       return NextResponse.redirect(
@@ -44,8 +29,8 @@ export async function GET(request: Request) {
       )
     }
 
-    // Decode state (now includes redirect_uri)
-    let stateData: { creator_unique_identifier?: string; user_id?: string; redirect_uri?: string }
+    // Decode state (now includes redirect_uri and code_verifier for PKCE)
+    let stateData: { creator_unique_identifier?: string; user_id?: string; redirect_uri?: string; code_verifier?: string }
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
     } catch {
@@ -107,37 +92,9 @@ export async function GET(request: Request) {
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET || 'RCBgpobN8bwmMBwbk56aY21nBYdxJECN'
     
     // Get redirect URI - use the one from state if available (ensures exact match with OAuth request)
-    // Otherwise detect ngrok from request
-    let redirectUri: string
-    
-    if (stateData.redirect_uri) {
-      // Use the exact redirect URI from the OAuth request (stored in state)
-      redirectUri = stateData.redirect_uri
-      console.log('[tiktok-callback] ✅ Using redirect URI from state (exact match):', redirectUri)
-    } else {
-      // Fallback: detect from request (for backward compatibility)
-      let detectedBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      
-      // If request is coming through ngrok, use that
-      if (requestUrl.host && requestUrl.host.includes('ngrok')) {
-        const protocol = requestUrl.protocol.replace(':', '') || 'https'
-        detectedBaseUrl = `${protocol}://${requestUrl.host}`
-        console.log('[tiktok-callback] ✅ Detected ngrok from request URL:', detectedBaseUrl)
-      } else {
-        // Check headers for ngrok
-        const forwardedHost = request.headers.get('x-forwarded-host')
-        const hostHeader = request.headers.get('host')
-        const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-        const detectedHost = forwardedHost || hostHeader
-        if (detectedHost && detectedHost.includes('ngrok')) {
-          detectedBaseUrl = `${forwardedProto}://${detectedHost}`
-          console.log('[tiktok-callback] ✅ Detected ngrok from headers:', detectedBaseUrl)
-        }
-      }
-      
-      redirectUri = `${detectedBaseUrl}/api/auth/tiktok/callback`
-      console.log('[tiktok-callback] Using redirect URI (detected):', redirectUri)
-    }
+    // Otherwise use getAppUrl() utility
+    const redirectUri = stateData.redirect_uri || `${getAppUrl()}/api/auth/tiktok/callback`
+    console.log('[tiktok-callback] Using redirect URI:', redirectUri)
 
     // Note: We're using hardcoded fallbacks, so we should always have credentials
     if (!clientKey || !clientSecret) {
@@ -154,19 +111,29 @@ export async function GET(request: Request) {
       console.log('[tiktok-callback] Using hardcoded TikTok credentials fallback')
     }
 
-    // Exchange code for tokens
+    // Exchange code for tokens (with PKCE if available)
+    const tokenParams: Record<string, string> = {
+      client_key: clientKey,
+      client_secret: clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    }
+    
+    // Add code_verifier if PKCE was used (required by TikTok)
+    if (stateData.code_verifier) {
+      tokenParams.code_verifier = stateData.code_verifier
+      console.log('[tiktok-callback] Using PKCE (code_verifier from state)')
+    } else {
+      console.warn('[tiktok-callback] No code_verifier in state - PKCE may fail')
+    }
+    
     const tokenResponse = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        client_key: clientKey,
-        client_secret: clientSecret,
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
+      body: new URLSearchParams(tokenParams),
     })
 
     if (!tokenResponse.ok) {

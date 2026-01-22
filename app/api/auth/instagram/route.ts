@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentCreator } from '@/lib/db/creator'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 /**
  * Initiate Instagram OAuth flow
@@ -55,46 +56,15 @@ export async function GET(request: Request) {
 
     // Instagram Business Login uses Instagram App ID (not Meta App ID)
     // Get from: Instagram > API setup with Instagram login > Business login settings
-    // Hardcode all IDs/secrets as fallback since .env.local isn't loading properly
-    const appId = process.env.INSTAGRAM_APP_ID || '836687999185692' || process.env.META_APP_ID || '771396602627794'
-    // Get redirect URI - detect ngrok from request, fallback to NEXT_PUBLIC_APP_URL or localhost
-    const requestUrl = new URL(request.url)
-    const headers = request.headers
-    const forwardedHost = headers.get('x-forwarded-host')
-    const hostHeader = headers.get('host')
-    const forwardedProto = headers.get('x-forwarded-proto') || 'https'
+    // Remove any whitespace/newlines from app ID
+    const appId = (process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID || '836687999185692').trim()
     
-    // Detect base URL - prioritize ngrok detection, then NEXT_PUBLIC_APP_URL, then localhost
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    
-    // Check if request is coming through ngrok (highest priority)
-    const detectedHost = forwardedHost || hostHeader || requestUrl.host
-    if (detectedHost && detectedHost.includes('ngrok')) {
-      const protocol = forwardedProto || requestUrl.protocol.replace(':', '') || 'https'
-      baseUrl = `${protocol}://${detectedHost}`
-      console.log('[Instagram OAuth] ✅ Detected ngrok from request:', baseUrl)
-    } else if (process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL.includes('ngrok')) {
-      // Fallback: use NEXT_PUBLIC_APP_URL if it contains ngrok
-      baseUrl = process.env.NEXT_PUBLIC_APP_URL
-      console.log('[Instagram OAuth] ✅ Using ngrok URL from NEXT_PUBLIC_APP_URL:', baseUrl)
-    } else {
-      // Default to localhost for local development
-      baseUrl = 'http://localhost:3000'
-      console.log('[Instagram OAuth] Using localhost for redirect URI')
-    }
-    
+    // Use getAppUrl() utility which properly detects Vercel, ngrok, or localhost
+    const baseUrl = getAppUrl()
     const redirectUri = `${baseUrl}/api/auth/instagram/callback`
     
-    // Debug: Log the redirect URI being used
-    console.log('[Instagram OAuth] Request URL:', requestUrl.toString())
-    console.log('[Instagram OAuth] Request headers:', {
-      'x-forwarded-host': forwardedHost,
-      'host': hostHeader,
-      'x-forwarded-proto': forwardedProto,
-    })
-    console.log('[Instagram OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL || 'NOT SET')
     console.log('[Instagram OAuth] Base URL:', baseUrl)
-    console.log('[Instagram OAuth] Full redirect URI:', redirectUri)
+    console.log('[Instagram OAuth] Redirect URI:', redirectUri)
     
     // Debug logging - Check all Instagram-related env vars
     console.log('[Instagram OAuth] Environment variables check:', {
