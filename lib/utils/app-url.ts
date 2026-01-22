@@ -2,25 +2,29 @@
  * Get the application base URL
  * 
  * Priority:
- * 1. VERCEL_URL (automatically set by Vercel) - format: "your-app.vercel.app" (no protocol)
- * 2. NEXT_PUBLIC_APP_URL (manually set)
+ * 1. NEXT_PUBLIC_APP_URL (manually set - takes precedence for OAuth consistency)
+ * 2. VERCEL_URL (automatically set by Vercel) - format: "your-app.vercel.app" (no protocol)
  * 3. localhost (development fallback)
+ * 
+ * Note: NEXT_PUBLIC_APP_URL is prioritized because it ensures OAuth redirect URIs
+ * match exactly what's configured in OAuth app settings, avoiding domain mismatches
+ * between deployment URLs (with hash) and project URLs.
  */
 export function getAppUrl(): string {
-  // Vercel automatically provides VERCEL_URL (just the domain, no protocol)
+  // Prioritize manually set URL (ensures OAuth redirect URIs match exactly)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    const url = process.env.NEXT_PUBLIC_APP_URL.trim().replace(/\/$/, '') // Remove trailing slash
+    console.log('[getAppUrl] Using NEXT_PUBLIC_APP_URL:', url)
+    return url
+  }
+  
+  // Fallback to Vercel's auto-set URL
   if (process.env.VERCEL_URL) {
     const vercelUrl = process.env.VERCEL_URL.trim()
     // VERCEL_URL is just the domain, add https://
     const url = vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`
     console.log('[getAppUrl] Using VERCEL_URL:', { VERCEL_URL: vercelUrl, finalUrl: url })
-    return url
-  }
-  
-  // Fallback to manually set URL
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    const url = process.env.NEXT_PUBLIC_APP_URL.trim()
-    console.log('[getAppUrl] Using NEXT_PUBLIC_APP_URL:', url)
-    return url
+    return url.replace(/\/$/, '') // Remove trailing slash
   }
   
   // Development fallback
