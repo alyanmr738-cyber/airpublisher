@@ -99,6 +99,7 @@ export async function GET(request: Request) {
     authUrl.searchParams.set('scope', scopes)
     authUrl.searchParams.set('access_type', 'offline') // Get refresh token
     authUrl.searchParams.set('prompt', 'consent') // Force consent to get refresh token
+    authUrl.searchParams.set('approval_prompt', 'force') // Additional parameter to force refresh token
     authUrl.searchParams.set('state', state)
 
     // Redirect to YouTube OAuth

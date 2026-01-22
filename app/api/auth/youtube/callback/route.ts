@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Database } from '@/lib/supabase/types'
+import { getAppUrl } from '@/lib/utils/app-url'
 
 /**
  * YouTube OAuth callback
@@ -87,24 +88,16 @@ export async function GET(request: Request) {
     const clientId = process.env.YOUTUBE_CLIENT_ID
     const clientSecret = process.env.YOUTUBE_CLIENT_SECRET
     
-    // Detect base URL (support ngrok for local development)
-    // Try to get from state first (if stored), otherwise detect from request
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    
-    // Check if request is coming through ngrok or has custom host
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host')
-    const protocol = request.headers.get('x-forwarded-proto') || (request.url.startsWith('https') ? 'https' : 'http')
-    
-    if (host && (host.includes('ngrok') || host.includes('.ngrok-free.dev'))) {
-      baseUrl = `${protocol}://${host}`
-      console.log('[YouTube Callback] Detected ngrok URL:', baseUrl)
-    } else if (host && host !== 'localhost:3000') {
-      // Custom host (production or other environment)
-      baseUrl = `${protocol}://${host}`
-      console.log('[YouTube Callback] Using custom host:', baseUrl)
-    }
-    
+    // Use getAppUrl() utility which properly detects Vercel, ngrok, or localhost
+    const baseUrl = getAppUrl().replace(/\/$/, '')
     const redirectUri = `${baseUrl}/api/auth/youtube/callback`
+    
+    console.log('[YouTube Callback] Environment check:', {
+      VERCEL_URL: process.env.VERCEL_URL || 'NOT SET',
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'NOT SET',
+    })
+    console.log('[YouTube Callback] Base URL:', baseUrl)
+    console.log('[YouTube Callback] Redirect URI:', redirectUri)
     
     console.log('[YouTube Callback] OAuth configuration:', {
       hasClientId: !!clientId,
@@ -155,10 +148,26 @@ export async function GET(request: Request) {
       scope,
     } = tokens
 
+    console.log('[YouTube Callback] Token response:', {
+      hasAccessToken: !!access_token,
+      hasRefreshToken: !!refresh_token,
+      expiresIn: expires_in,
+      scope: scope,
+    })
+
     if (!access_token) {
+      console.error('[YouTube Callback] No access token in response:', tokens)
       return NextResponse.redirect(
         new URL('/settings/connections?error=no_access_token', request.url)
       )
+    }
+
+    if (!refresh_token) {
+      console.warn('[YouTube Callback] ⚠️ No refresh token in response - token will expire and cannot be refreshed!')
+      console.warn('[YouTube Callback] This usually happens if:')
+      console.warn('[YouTube Callback] 1. User already authorized the app before')
+      console.warn('[YouTube Callback] 2. OAuth request didn\'t include prompt=consent')
+      console.warn('[YouTube Callback] 3. App is in testing mode with limited users')
     }
 
     // Get user info from YouTube to get channel ID
