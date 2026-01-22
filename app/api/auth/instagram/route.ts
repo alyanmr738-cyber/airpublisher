@@ -117,10 +117,15 @@ export async function GET(request: Request) {
     // Endpoint: https://api.instagram.com/oauth/authorize (NOT Facebook OAuth)
     const authUrl = new URL('https://api.instagram.com/oauth/authorize')
     authUrl.searchParams.set('client_id', appId)
+    // Ensure redirect_uri is properly encoded and matches exactly what's in Instagram settings
     authUrl.searchParams.set('redirect_uri', redirectUri)
     authUrl.searchParams.set('scope', scopes)
     authUrl.searchParams.set('response_type', 'code')
     authUrl.searchParams.set('state', state)
+    
+    // Debug: Log the final OAuth URL (without exposing sensitive data)
+    console.log('[Instagram OAuth] Final OAuth URL:', authUrl.toString().replace(/state=[^&]+/, 'state=***'))
+    console.log('[Instagram OAuth] Redirect URI being sent:', redirectUri)
     
     // Note: Instagram OAuth endpoint does NOT support config_id, display, or auth_type
     // These are Facebook OAuth-specific parameters
