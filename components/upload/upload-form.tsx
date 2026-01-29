@@ -383,8 +383,13 @@ If CORS can't be enabled, the upload will fall back to Next.js.`
           console.log('[UploadForm] ✅ Upload initiated - n8n will process and call back when done')
           setUploadProgressText('Upload en route – processing in n8n...')
           
-          // Store response text for later use (if needed)
-          // For n8n uploads, we're done here - no need to parse further
+          // For n8n uploads, we're done here - n8n will call back when processing completes
+          // Show success message and redirect
+          setUploading(false)
+          alert(`Video upload started! ✅\n\nn8n is processing your video in the background.\nThe video URL will be updated automatically when processing completes.\n\nVideo ID: ${video.id}`)
+          setTimeout(() => {
+            window.location.href = '/videos'
+          }, 2000)
           return // Exit early for n8n uploads
         }
         
@@ -426,26 +431,6 @@ If CORS can't be enabled, the upload will fall back to Next.js.`
           
           console.log('[UploadForm] ✅ File uploaded successfully:', uploadResult.video_url)
           setUploadProgressText('Upload completed successfully!')
-          return // Exit early - response already processed
-        }
-          console.error('[UploadForm] Upload error:', errorData)
-          
-          // Build detailed error message
-          let errorMessage = errorData.error || `Failed to upload file: ${uploadResponse.statusText}`
-          if (errorData.troubleshooting) {
-            errorMessage += '\n\n' + errorData.troubleshooting
-          }
-          if (errorData.details) {
-            errorMessage += '\n\nDetails: ' + errorData.details
-          }
-          
-          throw new Error(errorMessage)
-        }
-
-        // This code should not be reached if we handled n8n or Next.js uploads above
-        // But if we get here, the response was already processed
-        if (uploadResponse && uploadResponse.ok) {
-          console.log('[UploadForm] ✅ Upload completed')
         }
       } else {
         console.warn('[UploadForm] Skipping file upload - no file or video ID')
