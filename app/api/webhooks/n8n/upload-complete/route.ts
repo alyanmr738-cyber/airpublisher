@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       thumbnail_url,
       processing_status,
       error_message,
+      creator_unique_identifier, // Get from n8n callback
     } = body
 
     console.log('[upload-complete] Received webhook from n8n:', {
@@ -69,7 +70,22 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = await createClient()
+    // Use service role client to bypass RLS (n8n webhook doesn't have user session)
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const { Database } = await import('@/lib/supabase/types')
+    
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[upload-complete] SUPABASE_SERVICE_ROLE_KEY not configured')
+      return NextResponse.json(
+        { error: 'Service role key not configured' },
+        { status: 500 }
+      )
+    }
+    
+    const supabase = createServiceClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // First, check if video exists
     console.log('[upload-complete] Checking if video exists:', video_id)
@@ -102,6 +118,18 @@ export async function POST(request: Request) {
       // If video doesn't exist, try to create it (in case it was deleted or never created)
       // This is a fallback - normally the video should exist before upload
       if (processing_status === 'completed' && video_url) {
+        if (!creator_unique_identifier) {
+          console.error('[upload-complete] Cannot create video without creator_unique_identifier')
+          return NextResponse.json(
+            { 
+              error: 'Video not found and cannot be created',
+              video_id,
+              message: 'Video does not exist and creator_unique_identifier is missing from callback',
+            },
+            { status: 404 }
+          )
+        }
+        
         try {
           const { data: newVideo, error: createError } = await (supabase
             .from('air_publisher_videos') as any)
@@ -109,7 +137,7 @@ export async function POST(request: Request) {
               id: video_id,
               video_url: video_url,
               status: 'draft',
-              creator_unique_identifier: 'unknown', // Will need to be updated
+              creator_unique_identifier: creator_unique_identifier,
             })
             .select()
             .maybeSingle()
@@ -180,35 +208,13 @@ export async function POST(request: Request) {
 
     console.log('[upload-complete] Updating video with:', updates)
 
-    // Update the video - use service role if needed to bypass RLS
-    let updateResult
-    try {
-      updateResult = await (supabase
-        .from('air_publisher_videos') as any)
-        .update(updates)
-        .eq('id', video_id)
-        .select()
-        .maybeSingle()
-    } catch (updateException: any) {
-      console.error('[upload-complete] Exception during update:', updateException)
-      // Try with service role client if regular client fails
-      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        console.log('[upload-complete] Retrying with service role client...')
-        const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-        const serviceClient = createServiceClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
-        updateResult = await (serviceClient
-          .from('air_publisher_videos') as any)
-          .update(updates)
-          .eq('id', video_id)
-          .select()
-          .maybeSingle()
-      } else {
-        throw updateException
-      }
-    }
+    // Update the video (already using service role client)
+    const updateResult = await (supabase
+      .from('air_publisher_videos') as any)
+      .update(updates)
+      .eq('id', video_id)
+      .select()
+      .maybeSingle()
 
     const { data: updatedVideos, error: updateError } = updateResult || { data: null, error: null }
 

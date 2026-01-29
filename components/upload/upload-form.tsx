@@ -345,19 +345,25 @@ If CORS can't be enabled, the upload will fall back to Next.js.`
             clearTimeout(timeoutId)
           }
           
+          // Read response body once and reuse
+          let responseText = ''
+          try {
+            responseText = await uploadResponse.text()
+          } catch (e) {
+            console.warn('[UploadForm] Could not read response body:', e)
+          }
+          
           if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text()
             console.error('[UploadForm] ❌ n8n upload error:', {
               status: uploadResponse.status,
               statusText: uploadResponse.statusText,
-              error: errorText,
+              error: responseText,
             })
-            throw new Error(`Failed to upload to n8n (${uploadResponse.status}): ${errorText}`)
+            throw new Error(`Failed to upload to n8n (${uploadResponse.status}): ${responseText || uploadResponse.statusText}`)
           }
           
-          // Try to get response body
-          try {
-            const responseText = await uploadResponse.text()
+          // Log success response
+          if (responseText) {
             console.log('[UploadForm] ✅ File sent directly to n8n')
             console.log('[UploadForm] n8n response:', responseText.substring(0, 200))
             
@@ -368,7 +374,7 @@ If CORS can't be enabled, the upload will fall back to Next.js.`
             } catch {
               // Not JSON, that's fine
             }
-          } catch (e) {
+          } else {
             console.log('[UploadForm] ✅ File sent directly to n8n (no response body)')
           }
           
@@ -382,7 +388,9 @@ If CORS can't be enabled, the upload will fall back to Next.js.`
         if (uploadResponse && !uploadResponse.ok) {
           let errorData
           try {
-            const text = await uploadResponse.text()
+            // Clone response to avoid "body stream already read" error
+            const responseClone = uploadResponse.clone()
+            const text = await responseClone.text()
             errorData = text ? JSON.parse(text) : { error: uploadResponse.statusText }
           } catch (e) {
             errorData = { error: `Upload failed with status ${uploadResponse.status}: ${uploadResponse.statusText}` }
