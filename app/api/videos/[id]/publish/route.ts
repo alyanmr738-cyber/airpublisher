@@ -47,11 +47,11 @@ export async function POST(
       )
     }
 
-    // Verify video ownership
+    // Verify video ownership and get video details
     const supabase = await createClient()
     const { data: video, error: videoError } = await (supabase
       .from('air_publisher_videos') as any)
-      .select('creator_unique_identifier, platform_target')
+      .select('creator_unique_identifier, platform_target, video_url, title, description, thumbnail_url')
       .eq('id', videoId)
       .single()
 
@@ -66,6 +66,14 @@ export async function POST(
       return NextResponse.json(
         { error: 'Unauthorized: You do not own this video' },
         { status: 403 }
+      )
+    }
+
+    // Check if video has a URL (required for posting)
+    if (postType === 'now' && platform !== 'internal' && !video.video_url) {
+      return NextResponse.json(
+        { error: 'Video URL is required. Please wait for video upload to complete.' },
+        { status: 400 }
       )
     }
 
@@ -86,11 +94,20 @@ export async function POST(
                               'https://support-team.app.n8n.cloud/webhook/15ec8f2d-a77c-4407-8ab8-cd505284bb42'
         
         try {
+          // Get app URL for callback
+          const { getAppUrl } = await import('@/lib/utils/app-url')
+          const appUrl = getAppUrl()
+
           const webhookPayload = {
             video_id: videoId,
             creator_unique_identifier: video.creator_unique_identifier,
             platform: platform,
             trigger_type: 'immediate',
+            video_url: video.video_url,
+            title: video.title,
+            description: video.description || null,
+            thumbnail_url: video.thumbnail_url || null,
+            callback_url: `${appUrl}/api/webhooks/n8n/post-status`,
           }
 
           const headers: HeadersInit = {
