@@ -15,8 +15,12 @@ export async function GET() {
     )
   }
   
+  const { getAppUrl } = await import('@/lib/utils/app-url')
+  const appUrl = getAppUrl()
+  
   return NextResponse.json({
-    webhookUrl,
+    n8n_webhook_url: webhookUrl,
+    callback_url: `${appUrl}/api/webhooks/n8n/upload-complete`,
   })
 }
 

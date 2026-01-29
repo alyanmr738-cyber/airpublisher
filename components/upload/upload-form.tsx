@@ -97,13 +97,21 @@ export function UploadForm({ creatorUniqueIdentifier }: UploadFormProps) {
           fileSize: file.size,
         })
         
-        // CORS is blocking direct n8n uploads, so use Next.js as proxy
-        // Next.js will forward to n8n (server-to-server, no CORS issues)
-        console.log('[UploadForm] Using Next.js as proxy to n8n (bypasses CORS)')
+        // Get n8n webhook URL from environment (client-side accessible via API)
+        // For Vercel, we MUST upload directly to n8n to avoid payload limit
+        let n8nWebhookUrl: string | null = null
         
-        // Skip direct n8n upload due to CORS issues
-        // Upload through Next.js instead, which will forward to n8n
-        const n8nWebhookUrl: string | null = null // Disable direct upload for now
+        // Try to get webhook URL from API (avoids exposing in client bundle)
+        try {
+          const configResponse = await fetch('/api/config/n8n-webhook-url')
+          if (configResponse.ok) {
+            const config = await configResponse.json()
+            n8nWebhookUrl = config.n8n_webhook_url || null
+            console.log('[UploadForm] Got n8n webhook URL from API')
+          }
+        } catch (e) {
+          console.warn('[UploadForm] Could not get webhook URL from API, will try direct upload anyway')
+        }
         
         if (!n8nWebhookUrl) {
           // Fallback: Upload through Next.js (may timeout with ngrok)
