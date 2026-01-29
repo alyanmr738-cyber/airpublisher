@@ -103,11 +103,15 @@ export async function GET(
 
         try {
           if (platform === 'youtube') {
-            const validToken = await getValidYouTubeAccessToken(creatorId)
+            // getValidYouTubeAccessToken expects tokens object, not creatorId
+            // We already have tokens from above, so pass them
+            const validToken = await getValidYouTubeAccessToken(tokens, creatorId)
             tokenValid = !!validToken
             tokenExpired = !validToken
           } else if (platform === 'instagram') {
-            const validToken = await getValidInstagramAccessToken(creatorId)
+            // getValidInstagramAccessToken expects tokens object, not creatorId
+            // We already have tokens from above, so pass them
+            const validToken = await getValidInstagramAccessToken(tokens, creatorId)
             tokenValid = !!validToken
             tokenExpired = !validToken
           } else if (platform === 'tiktok') {
