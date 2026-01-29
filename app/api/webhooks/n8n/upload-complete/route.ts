@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyN8nWebhook } from '@/lib/webhooks/n8n'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { Database } from '@/lib/supabase/types'
 
 // Force dynamic rendering - this route uses headers for webhook verification
 export const dynamic = 'force-dynamic'
@@ -71,8 +73,6 @@ export async function POST(request: Request) {
     }
 
     // Use service role client to bypass RLS (n8n webhook doesn't have user session)
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-    const { Database } = await import('@/lib/supabase/types')
     
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('[upload-complete] SUPABASE_SERVICE_ROLE_KEY not configured')
