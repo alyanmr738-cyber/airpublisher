@@ -10,6 +10,7 @@ import { RefreshOnSuccess } from '@/components/settings/refresh-on-success'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { SignOutButton } from '@/components/settings/sign-out-button'
+import { OAuthConnectButton } from '@/components/settings/oauth-connect-button'
 
 export default async function ConnectionsPage({
   searchParams,
@@ -330,18 +331,21 @@ export default async function ConnectionsPage({
                 {isYouTubeExpired && (
                   <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
                 )}
-                <Link href="/api/auth/youtube">
-                  <Button variant="outline" className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10">
-                    {isYouTubeExpired ? 'Reconnect' : 'Update Connection'}
-                  </Button>
-                </Link>
+                <OAuthConnectButton 
+                  oauthUrl="/api/auth/youtube"
+                  variant="outline" 
+                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                >
+                  {isYouTubeExpired ? 'Reconnect' : 'Update Connection'}
+                </OAuthConnectButton>
               </div>
             ) : (
-              <Link href="/api/auth/youtube">
-                <Button className="w-full bg-red-500 hover:bg-red-600">
-                  Connect YouTube
-                </Button>
-              </Link>
+              <OAuthConnectButton 
+                oauthUrl="/api/auth/youtube"
+                className="w-full bg-red-500 hover:bg-red-600"
+              >
+                Connect YouTube
+              </OAuthConnectButton>
             )}
           </CardContent>
         </Card>
@@ -379,18 +383,21 @@ export default async function ConnectionsPage({
                 {isInstagramExpired && (
                   <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
                 )}
-                <Link href="/api/auth/instagram">
-                  <Button variant="outline" className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10">
-                    {isInstagramExpired ? 'Reconnect' : 'Update Connection'}
-                  </Button>
-                </Link>
+                <OAuthConnectButton 
+                  oauthUrl="/api/auth/instagram"
+                  variant="outline" 
+                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                >
+                  {isInstagramExpired ? 'Reconnect' : 'Update Connection'}
+                </OAuthConnectButton>
               </div>
             ) : (
-              <Link href="/api/auth/instagram">
-                <Button className="w-full bg-pink-500 hover:bg-pink-600">
-                  Connect Instagram
-                </Button>
-              </Link>
+              <OAuthConnectButton 
+                oauthUrl="/api/auth/instagram"
+                className="w-full bg-pink-500 hover:bg-pink-600"
+              >
+                Connect Instagram
+              </OAuthConnectButton>
             )}
           </CardContent>
         </Card>
@@ -428,18 +435,21 @@ export default async function ConnectionsPage({
                 {isTikTokExpired && (
                   <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
                 )}
-                <Link href="/api/auth/tiktok">
-                  <Button variant="outline" className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10">
-                    {isTikTokExpired ? 'Reconnect' : 'Update Connection'}
-                  </Button>
-                </Link>
+                <OAuthConnectButton 
+                  oauthUrl="/api/auth/tiktok"
+                  variant="outline" 
+                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                >
+                  {isTikTokExpired ? 'Reconnect' : 'Update Connection'}
+                </OAuthConnectButton>
               </div>
             ) : (
-              <Link href="/api/auth/tiktok">
-                <Button className="w-full bg-black hover:bg-gray-800 text-white">
-                  Connect TikTok
-                </Button>
-              </Link>
+              <OAuthConnectButton 
+                oauthUrl="/api/auth/tiktok"
+                className="w-full bg-black hover:bg-gray-800 text-white"
+              >
+                Connect TikTok
+              </OAuthConnectButton>
             )}
           </CardContent>
         </Card>
