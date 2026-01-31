@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
     // - status = 'pending'
     // - scheduled_at <= before (current time or specified time)
     // - Order by scheduled_at ASC (oldest first)
-    const { data: scheduledPosts, error } = await supabase
-      .from('air_publisher_scheduled_posts')
+    const { data: scheduledPosts, error } = await (supabase
+      .from('air_publisher_scheduled_posts') as any)
       .select(`
         id,
         video_id,

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentCreator } from '@/lib/db/creator'
-import { getAppUrl } from '@/lib/utils/app-url'
+// Helper to get app URL
+const getAppUrl = () => {
+  return process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : 'http://localhost:3000')
+}
 
 // Force dynamic rendering - this route uses cookies and request.url
 export const dynamic = 'force-dynamic'

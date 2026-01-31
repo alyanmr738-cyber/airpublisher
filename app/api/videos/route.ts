@@ -25,7 +25,7 @@ export async function GET() {
     const { data: videos, error } = await supabase
       .from('air_publisher_videos')
       .select('*')
-      .eq('creator_unique_identifier', profile.creator_unique_identifier)
+      .eq('creator_unique_identifier', (profile as any).creator_unique_identifier)
       .order('created_at', { ascending: false })
 
     if (error) {
