@@ -1,112 +1,127 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { verifyN8nWebhook } from '@/lib/webhooks/n8n'
 
-// Force dynamic rendering - this route uses headers for webhook verification
-export const dynamic = 'force-dynamic'
-
-/**
- * Webhook endpoint for n8n to report back post status
- * Called by n8n after attempting to post to a platform
- * 
- * Expected payload from n8n:
- * {
- *   "video_id": "uuid",
- *   "status": "posted" | "failed",
- *   "platform_post_id": "platform-specific-id" (optional),
- *   "platform_url": "https://..." (optional),
- *   "error_message": "..." (if failed)
- * }
- */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Verify webhook signature
-    const isValid = await verifyN8nWebhook(request)
-    if (!isValid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Authenticate request
+    const apiKey = request.headers.get('x-n8n-api-key')
+    const authHeader = request.headers.get('authorization')
+    const expectedApiKey = process.env.N8N_API_KEY
+
+    if (!expectedApiKey) {
+      return NextResponse.json(
+        { error: 'N8N_API_KEY not configured' },
+        { status: 500 }
+      )
     }
 
+    // Check authentication
+    const providedKey = apiKey || authHeader?.replace('Bearer ', '')
+    if (providedKey !== expectedApiKey) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Parse request body
     const body = await request.json()
     const {
       video_id,
       status,
+      platform,
       platform_post_id,
-      platform_url,
+      platform_post_url,
+      youtube_url,
+      instagram_url,
+      tiktok_url,
       error_message,
+      published_at
     } = body
 
-    if (!video_id || !status) {
+    if (!video_id) {
       return NextResponse.json(
-        { error: 'Missing required fields: video_id, status' },
+        { error: 'video_id is required' },
         { status: 400 }
       )
     }
 
-    if (!['posted', 'failed'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be "posted" or "failed"' },
-        { status: 400 }
-      )
-    }
-
+    // Create Supabase client with service role for updates
     const supabase = await createClient()
 
-    // Update video status
-    const updates: any = {
-      status,
+    // Build update object
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString()
     }
 
-    if (status === 'posted') {
+    // Update status
+    if (status) {
+      updates.status = status
+    }
+
+    // Update posted_at if status is 'posted'
+    if (status === 'posted' && published_at) {
+      updates.posted_at = published_at
+    } else if (status === 'posted' && !updates.posted_at) {
       updates.posted_at = new Date().toISOString()
-      // Store platform post ID and URL if provided
-      if (platform_post_id) {
-        // You might want to add a platform_post_id column to the table
-        // For now, we'll store it in a separate table or as metadata
+    }
+
+    // Update platform URLs
+    // Priority: specific platform URL fields > platform_post_url with platform detection
+    if (youtube_url) {
+      updates.youtube_url = youtube_url
+    }
+    if (instagram_url) {
+      updates.instagram_url = instagram_url
+    }
+    if (tiktok_url) {
+      updates.tiktok_url = tiktok_url
+    }
+
+    // If platform_post_url is provided but no specific URL field, use platform to determine which field
+    if (platform_post_url && !youtube_url && !instagram_url && !tiktok_url) {
+      if (platform === 'youtube') {
+        updates.youtube_url = platform_post_url
+      } else if (platform === 'instagram') {
+        updates.instagram_url = platform_post_url
+      } else if (platform === 'tiktok') {
+        updates.tiktok_url = platform_post_url
       }
     }
 
-    if (status === 'failed' && error_message) {
-      // Store error message (you might want to add an error_message column)
-      console.error(`Post failed for video ${video_id}:`, error_message)
-    }
-
-    const { data: video, error: updateError } = await (supabase
-      .from('air_publisher_videos') as any)
+    // Update video in database
+    const { data, error } = await supabase
+      .from('air_publisher_videos')
       .update(updates)
       .eq('id', video_id)
       .select()
       .single()
 
-    if (updateError) {
-      console.error('Error updating video status:', updateError)
+    if (error) {
+      console.error('Error updating video:', error)
       return NextResponse.json(
-        { error: 'Failed to update video status' },
+        { error: 'Failed to update video', details: error.message },
         { status: 500 }
       )
     }
 
-    // If posted successfully, also create entry in creator_posts table
-    if (status === 'posted' && platform_post_id) {
-      const videoData = video as any
-      await (supabase.from('creator_posts') as any).insert({
-        creator_unique_identifier: videoData.creator_unique_identifier,
-        platform: videoData.platform_target,
-        post_id: platform_post_id,
-        content_url: platform_url || videoData.video_url,
-      })
+    if (!data) {
+      return NextResponse.json(
+        { error: 'Video not found' },
+        { status: 404 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      video,
+      video: data,
+      message: `Video ${video_id} updated successfully`
     })
   } catch (error) {
-    console.error('n8n post-status webhook error:', error)
+    console.error('Error in post-status webhook:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
-
-
