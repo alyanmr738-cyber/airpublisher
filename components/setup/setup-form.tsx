@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { createProfileAction } from '@/app/api/profile/actions'
 import { createClient } from '@/lib/supabase/client'
+import { AvatarSelector } from './avatar-selector'
 
 export function SetupForm() {
   const [displayName, setDisplayName] = useState('')
@@ -115,62 +116,53 @@ export function SetupForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-sm text-red-400">
+        <div className="p-4 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
           {error}
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-semibold mb-2">
-          Display Name <span className="text-foreground/50">(optional)</span>
+        <label className="block text-sm font-semibold mb-2 text-foreground">
+          Display Name <span className="text-foreground/50 font-normal">(optional)</span>
         </label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
           placeholder="Your creator name"
         />
-        <p className="text-xs text-foreground/50 mt-1">
+        <p className="text-xs text-foreground/60 mt-2">
           This will be shown on your profile and leaderboards
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold mb-2">
-          Niche <span className="text-foreground/50">(optional)</span>
+        <label className="block text-sm font-semibold mb-2 text-foreground">
+          Niche <span className="text-foreground/50 font-normal">(optional)</span>
         </label>
         <select
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-colors"
         >
-          <option value="">Select a niche</option>
+          <option value="" className="bg-background">Select a niche</option>
           {popularNiches.map((n) => (
-            <option key={n} value={n}>
+            <option key={n} value={n} className="bg-background">
               {n}
             </option>
           ))}
         </select>
-        <p className="text-xs text-foreground/50 mt-1">
+        <p className="text-xs text-foreground/60 mt-2">
           Your content category
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold mb-2">
-          Profile Picture URL <span className="text-foreground/50">(optional)</span>
+        <label className="block text-sm font-semibold mb-3 text-foreground">
+          Profile Picture <span className="text-foreground/50 font-normal">(optional)</span>
         </label>
-        <input
-          type="url"
-          value={avatarUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-          className="w-full px-4 py-3 bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-          placeholder="https://example.com/avatar.jpg"
-        />
-        <p className="text-xs text-foreground/50 mt-1">
-          Link to your profile picture
-        </p>
+        <AvatarSelector value={avatarUrl} onChange={setAvatarUrl} />
       </div>
 
       <div className="flex gap-4 pt-4">
@@ -185,6 +177,7 @@ export function SetupForm() {
           type="button"
           variant="outline"
           onClick={() => router.push('/dashboard')}
+          disabled={loading}
         >
           Skip for Now
         </Button>

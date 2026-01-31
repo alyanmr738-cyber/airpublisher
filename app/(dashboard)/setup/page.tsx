@@ -23,17 +23,17 @@ export default async function SetupPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-8 py-8">
       <div>
-        <h1 className="text-4xl font-extrabold mb-3">Complete Your Profile</h1>
-        <p className="text-foreground/80 text-lg font-medium">
+        <h1 className="text-4xl font-extrabold mb-3 text-foreground">Complete Your Profile</h1>
+        <p className="text-foreground/70 text-lg">
           Set up your creator profile to start publishing and competing on leaderboards.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Creator Information</CardTitle>
+          <CardTitle className="text-foreground">Creator Information</CardTitle>
           <CardDescription>
             This information will be displayed on your profile and leaderboards.
           </CardDescription>

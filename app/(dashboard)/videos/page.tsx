@@ -1,151 +1,175 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { getCurrentCreator } from '@/lib/db/creator'
-import { getVideosByCreator } from '@/lib/db/videos'
-import { redirect } from 'next/navigation'
-import { PlatformSelectButton } from '@/components/videos/platform-select-button'
-import { SetVideoUrlButton } from '@/components/videos/set-video-url-button'
-import { getVideoStreamUrl } from '@/lib/utils/dropbox-url'
+import { PostNowButton } from '@/components/videos/post-now-button'
+import { ScheduleButton } from '@/components/videos/schedule-button'
+import { Eye, Calendar, Clock, Plus } from 'lucide-react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { formatNumber } from '@/lib/utils'
 
-export default async function VideosPage() {
-  const creator = await getCurrentCreator()
-  if (!creator) {
-    redirect('/setup')
+interface Video {
+  id: string
+  title: string
+  description: string | null
+  thumbnail_url: string | null
+  platform_target: string
+  status: string
+  views: number
+  created_at: string
+  posted_at: string | null
+  scheduled_at: string | null
+  creator_unique_identifier: string
+}
+
+export default function VideosPage() {
+  const [videos, setVideos] = useState<Video[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchVideos() {
+      try {
+        const response = await fetch('/api/videos')
+        if (response.ok) {
+          const data = await response.json()
+          setVideos(data.videos || [])
+        }
+      } catch (error) {
+        console.error('Error fetching videos:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchVideos()
+  }, [])
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'primary' | 'success' | 'destructive'> = {
+      draft: 'default',
+      scheduled: 'primary',
+      posted: 'success',
+      failed: 'destructive',
+    }
+    return (
+      <Badge variant={variants[status] || 'default'}>
+        {status}
+      </Badge>
+    )
   }
 
-  const videos = await getVideosByCreator(creator.unique_identifier)
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <p className="text-foreground/70">Loading videos...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-extrabold mb-2 text-white">My Videos</h1>
-        <p className="text-white/70 text-sm uppercase tracking-[0.4em]">
-          All your uploaded videos ({videos.length} total)
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-extrabold mb-2">My Videos</h1>
+          <p className="text-foreground/70">Manage and publish your videos</p>
+        </div>
+        <Link href="/upload">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Upload Video
+          </Button>
+        </Link>
       </div>
 
       {videos.length === 0 ? (
-        <Card className="bg-white/5 border-white/10">
+        <Card>
           <CardContent className="pt-6">
-            <div className="text-center py-8 text-white/70">
-              <p>No videos yet. Upload your first video to get started.</p>
+            <div className="text-center py-12">
+              <p className="text-foreground/70 mb-4">No videos yet</p>
+              <Link href="/upload">
+                <Button>Upload Your First Video</Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {videos.map((video) => (
-            <Card key={video.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Video Preview */}
-                  <div className="md:col-span-1">
-                    {video.video_url ? (
-                      <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-                        <video
-                          src={getVideoStreamUrl(video.id)}
-                          controls
-                          className="w-full h-full object-contain"
-                          preload="metadata"
-                        >
-                          <source src={getVideoStreamUrl(video.id)} type="video/mp4" />
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
-                    ) : (
-                      <div className="w-full aspect-video bg-white/5 rounded-lg flex items-center justify-center">
-                        <p className="text-white/50 text-sm">No video preview</p>
-                      </div>
-                    )}
-                    {video.video_url && (
-                      <p className="text-xs text-white/50 mt-2 truncate" title={video.video_url}>
-                        {video.video_url}
-                      </p>
-                    )}
-                  </div>
+            <Card key={video.id} className="overflow-hidden">
+              {video.thumbnail_url && (
+                <div className="aspect-video bg-muted overflow-hidden relative">
+                  <Image
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <CardHeader>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="line-clamp-2 text-lg">{video.title}</CardTitle>
+                  {getStatusBadge(video.status)}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {video.description && (
+                  <p className="text-sm text-foreground/70 line-clamp-2">
+                    {video.description}
+                  </p>
+                )}
 
-                  {/* Video Info */}
-                  <div className="md:col-span-2 flex-1">
-                    <h3 className="font-semibold text-lg mb-2 text-white">{video.title}</h3>
-                    {video.description && (
-                      <p className="text-sm text-white/70 mb-3 line-clamp-3">{video.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 flex-wrap mb-3">
-                      <Badge
-                        variant={
-                          video.status === 'posted'
-                            ? 'success'
-                            : video.status === 'scheduled'
-                            ? 'primary'
-                            : 'default'
-                        }
-                      >
-                        {video.status}
-                      </Badge>
-                      <Badge variant="outline" className="bg-white/10 text-white/70 border-white/20">{video.platform_target}</Badge>
-                      <Badge variant="outline" className="bg-white/10 text-white/70 border-white/20">{video.source_type}</Badge>
-                      {video.views !== undefined && (
-                        <Badge variant="outline" className="bg-white/10 text-white/70 border-white/20">
-                          {video.views || 0} views
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="mt-3 flex gap-2 flex-wrap">
-                      {!video.video_url && (
-                        <SetVideoUrlButton videoId={video.id} />
-                      )}
-                      {/* Allow posting to multiple platforms even after initial post */}
-                      <PlatformSelectButton 
-                        videoId={video.id} 
-                        creatorUniqueIdentifier={creator.unique_identifier}
-                      />
-                    </div>
-                    {video.created_at && (
-                      <p className="text-xs text-white/50 mt-3">
-                        Created: {new Date(video.created_at).toLocaleString()}
-                      </p>
-                    )}
-                    {video.posted_at && (
-                      <p className="text-xs text-white/50">
-                        Posted: {new Date(video.posted_at).toLocaleString()}
-                      </p>
-                    )}
+                <div className="flex items-center gap-4 text-sm text-foreground/60">
+                  <div className="flex items-center gap-1">
+                    <Eye className="h-4 w-4" />
+                    <span>{formatNumber(video.views || 0)}</span>
                   </div>
+                  {video.posted_at && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>{new Date(video.posted_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {video.scheduled_at && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>{new Date(video.scheduled_at).toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Debug Info (Collapsible) */}
-                <details className="mt-4 pt-4 border-t border-white/10">
-                  <summary className="text-sm text-white/50 cursor-pointer hover:text-white/70">
-                    Debug Info
-                  </summary>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-2">
-                    <div>
-                      <p className="text-white/50">ID</p>
-                      <p className="font-mono text-xs text-white/70">{video.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/50">Creator ID</p>
-                      <p className="font-mono text-xs truncate text-white/70">{video.creator_unique_identifier}</p>
-                    </div>
-                    {video.video_url && (
-                      <div>
-                        <p className="text-white/50">Video URL</p>
-                        <p className="text-xs truncate text-white/70" title={video.video_url}>
-                          {video.video_url.substring(0, 50)}...
-                        </p>
-                      </div>
-                    )}
-                    {video.thumbnail_url && (
-                      <div>
-                        <p className="text-white/50">Thumbnail URL</p>
-                        <p className="text-xs truncate text-white/70" title={video.thumbnail_url}>
-                          {video.thumbnail_url.substring(0, 50)}...
-                        </p>
-                      </div>
-                    )}
+                <div className="flex items-center gap-2 pt-2 border-t border-border">
+                  <Badge variant="outline" className="capitalize">
+                    {video.platform_target}
+                  </Badge>
+                </div>
+
+                {video.status === 'draft' && (
+                  <div className="flex gap-2 pt-2">
+                    <PostNowButton
+                      videoId={video.id}
+                      creatorUniqueIdentifier={video.creator_unique_identifier}
+                    />
+                    <ScheduleButton
+                      videoId={video.id}
+                      creatorUniqueIdentifier={video.creator_unique_identifier}
+                    />
                   </div>
-                </details>
+                )}
+
+                <Link href={`/videos/${video.id}`}>
+                  <Button variant="outline" className="w-full mt-2">
+                    View Details
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ))}
@@ -154,4 +178,3 @@ export default async function VideosPage() {
     </div>
   )
 }
-

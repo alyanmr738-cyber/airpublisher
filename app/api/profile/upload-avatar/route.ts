@@ -1,74 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export const dynamic = 'force-dynamic'
-export const maxDuration = 60
-
-const AVATAR_BUCKET = 'profile-pictures'
+const AVATAR_BUCKET = 'air-publisher-avatars'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (!user || authError) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get the file from FormData
     const formData = await request.formData()
-    const file = formData.get('file') as File | null
+    const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      )
     }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'File must be an image' },
+        { status: 400 }
+      )
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'File size must be less than 5MB' },
+        { status: 400 }
+      )
     }
 
-    // Generate unique filename with user folder structure
+    // Generate unique filename
     const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${fileExt}`
-    const filePath = `${user.id}/${fileName}`
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`
+    const filePath = `avatars/${fileName}`
+
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(AVATAR_BUCKET)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true, // Replace if exists
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: false,
       })
 
     if (uploadError) {
-      console.error('[upload-avatar] Upload error:', uploadError)
+      console.error('Storage upload error:', uploadError)
       return NextResponse.json(
-        { error: `Failed to upload image: ${uploadError.message}` },
+        { error: 'Failed to upload avatar', details: uploadError.message },
         { status: 500 }
       )
     }
 
     // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(AVATAR_BUCKET)
-      .getPublicUrl(filePath)
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath)
 
     return NextResponse.json({
       success: true,
       url: publicUrl,
       path: uploadData.path,
     })
-  } catch (error: any) {
-    console.error('[upload-avatar] Exception:', error)
+  } catch (error) {
+    console.error('Error in upload-avatar endpoint:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

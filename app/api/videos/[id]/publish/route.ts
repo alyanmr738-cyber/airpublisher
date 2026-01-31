@@ -1,171 +1,124 @@
-import { NextResponse } from 'next/server'
-import { publishVideoAction, scheduleVideoAction } from '@/app/api/videos/actions'
-import { updateVideoAction } from '@/app/api/videos/actions'
-import { getCurrentCreator } from '@/lib/db/creator'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-/**
- * Publish or schedule a video to a specific platform
- * 
- * Body:
- * {
- *   "platform": "internal" | "youtube" | "instagram" | "tiktok",
- *   "postType": "now" | "schedule",
- *   "scheduledAt": "2024-01-20T10:00:00Z" (optional, required if postType is "schedule")
- * }
- */
 export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = params instanceof Promise ? await params : params
-    const videoId = resolvedParams.id
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const videoId = params.id
     const body = await request.json()
     const { platform, postType, scheduledAt } = body
 
-    if (!platform || !postType) {
+    if (!platform) {
       return NextResponse.json(
-        { error: 'Missing required fields: platform, postType' },
+        { error: 'Platform is required' },
         { status: 400 }
       )
     }
 
-    if (postType === 'schedule' && !scheduledAt) {
-      return NextResponse.json(
-        { error: 'scheduledAt is required when postType is "schedule"' },
-        { status: 400 }
-      )
-    }
-
-    const creator = await getCurrentCreator()
-    if (!creator) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Please create a creator profile first' },
-        { status: 401 }
-      )
-    }
-
-    // Verify video ownership and get video details
-    const supabase = await createClient()
-    const { data: video, error: videoError } = await (supabase
-      .from('air_publisher_videos') as any)
-      .select('creator_unique_identifier, platform_target, video_url, title, description, thumbnail_url')
-      .eq('id', videoId)
+    // Get creator unique identifier
+    const { data: profile } = await supabase
+      .from('airpublisher_creator_profiles')
+      .select('creator_unique_identifier')
+      .eq('user_id', user.id)
       .single()
 
-    if (videoError || !video) {
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Video not found' },
+        { error: 'Creator profile not found' },
         { status: 404 }
       )
     }
 
-    if (video.creator_unique_identifier !== creator.unique_identifier) {
-      return NextResponse.json(
-        { error: 'Unauthorized: You do not own this video' },
-        { status: 403 }
-      )
-    }
-
-    // Check if video has a URL (required for posting)
-    if (postType === 'now' && platform !== 'internal' && !video.video_url) {
-      return NextResponse.json(
-        { error: 'Video URL is required. Please wait for video upload to complete.' },
-        { status: 400 }
-      )
-    }
-
-    // Update video with platform and schedule/post
     if (postType === 'schedule') {
-      await scheduleVideoAction(videoId, scheduledAt, platform)
+      // Schedule the post
+      if (!scheduledAt) {
+        return NextResponse.json(
+          { error: 'Scheduled time is required' },
+          { status: 400 }
+        )
+      }
+
+      const scheduledDate = new Date(scheduledAt)
+      if (scheduledDate < new Date()) {
+        return NextResponse.json(
+          { error: 'Scheduled time must be in the future' },
+          { status: 400 }
+        )
+      }
+
+      // Insert into scheduled_posts table
+      const { data: scheduledPost, error: scheduleError } = await supabase
+        .from('air_publisher_scheduled_posts')
+        .insert({
+          video_id: videoId,
+          creator_unique_identifier: profile.creator_unique_identifier,
+          platform: platform,
+          scheduled_at: scheduledDate.toISOString(),
+          status: 'pending',
+        })
+        .select()
+        .single()
+
+      if (scheduleError) {
+        console.error('Error scheduling post:', scheduleError)
+        return NextResponse.json(
+          { error: 'Failed to schedule post', details: scheduleError.message },
+          { status: 500 }
+        )
+      }
+
+      // Update video status
+      await supabase
+        .from('air_publisher_videos')
+        .update({ status: 'scheduled' })
+        .eq('id', videoId)
+
+      return NextResponse.json({
+        success: true,
+        scheduled_post: scheduledPost,
+        message: 'Video scheduled successfully',
+      })
     } else {
-      // Post now - update platform and trigger immediate post via n8n
-      await updateVideoAction(videoId, {
-        platform_target: platform,
-        // Don't set status to 'scheduled' - n8n will update it to 'posted' when done
-        // Keep status as 'draft' until n8n confirms posting
+      // Post now - trigger n8n webhook
+      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/n8n/post-video`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-n8n-api-key': process.env.N8N_API_KEY || '',
+        },
+        body: JSON.stringify({
+          video_id: videoId,
+          platform: platform,
+        }),
       })
 
-      // Trigger immediate post webhook if not internal
-      if (platform !== 'internal') {
-        const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL_POST_VIDEO || 
-                              'https://support-team.app.n8n.cloud/webhook/15ec8f2d-a77c-4407-8ab8-cd505284bb42'
-        
-        try {
-          // Get app URL for callback
-          const { getAppUrl } = await import('@/lib/utils/app-url')
-          const appUrl = getAppUrl()
-
-          const webhookPayload = {
-            video_id: videoId,
-            creator_unique_identifier: video.creator_unique_identifier,
-            platform: platform,
-            trigger_type: 'immediate',
-            video_url: video.video_url,
-            title: video.title,
-            description: video.description || null,
-            thumbnail_url: video.thumbnail_url || null,
-            callback_url: `${appUrl}/api/webhooks/n8n/post-status`,
-          }
-
-          const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-          }
-
-          // Add API key if configured
-          const n8nApiKey = process.env.N8N_API_KEY
-          if (n8nApiKey) {
-            headers['x-n8n-api-key'] = n8nApiKey
-          }
-
-          console.log('[publish] Triggering n8n immediate post webhook:', {
-            url: n8nWebhookUrl,
-            video_id: videoId,
-            platform: platform,
-          })
-
-          const webhookResponse = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(webhookPayload),
-          })
-
-          if (!webhookResponse.ok) {
-            const errorText = await webhookResponse.text()
-            console.error('[publish] n8n webhook error:', errorText)
-            throw new Error(`Failed to trigger n8n webhook: ${errorText}`)
-          }
-
-          const webhookResult = await webhookResponse.json().catch(() => ({ success: true }))
-          console.log('[publish] ✅ Successfully triggered n8n webhook:', webhookResult)
-        } catch (webhookError: any) {
-          console.error('[publish] Webhook trigger failed:', webhookError)
-          // Don't fail the request - n8n cron might still pick it up
-          // But log the error so user knows
-          throw new Error(`Failed to trigger immediate post: ${webhookError.message || 'Unknown error'}`)
-        }
-      } else {
-        // Internal platform - mark as posted immediately
-        await updateVideoAction(videoId, {
-          status: 'posted',
-          posted_at: new Date().toISOString(),
-        })
+      if (!response.ok) {
+        const errorData = await response.json()
+        return NextResponse.json(
+          { error: 'Failed to post video', details: errorData.error },
+          { status: 500 }
+        )
       }
-    }
 
-    return NextResponse.json({
-      success: true,
-      message: postType === 'now' ? 'Video posted successfully' : 'Video scheduled successfully',
-    })
-  } catch (error: any) {
-    console.error('[publish] Error:', error)
+      return NextResponse.json({
+        success: true,
+        message: 'Video posted successfully',
+      })
+    }
+  } catch (error) {
+    console.error('Error in publish endpoint:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to publish video' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
-
-
