@@ -47,11 +47,11 @@ export default function VideosPage() {
   }, [])
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'primary' | 'success' | 'destructive'> = {
+    const variants: Record<string, 'default' | 'primary' | 'success' | 'danger'> = {
       draft: 'default',
       scheduled: 'primary',
       posted: 'success',
-      failed: 'destructive',
+      failed: 'danger',
     }
     return (
       <Badge variant={variants[status] || 'default'}>
