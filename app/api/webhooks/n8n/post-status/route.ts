@@ -50,7 +50,14 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
 
     // Build update object
-    const updates: Record<string, any> = {
+    const updates: {
+      updated_at?: string
+      status?: string
+      posted_at?: string
+      youtube_url?: string
+      instagram_url?: string
+      tiktok_url?: string
+    } = {
       updated_at: new Date().toISOString()
     }
 
@@ -92,7 +99,7 @@ export async function POST(request: NextRequest) {
     // Update video in database
     const { data, error } = await supabase
       .from('air_publisher_videos')
-      .update(updates)
+      .update(updates as any)
       .eq('id', video_id)
       .select()
       .single()
