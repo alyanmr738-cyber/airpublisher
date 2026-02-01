@@ -183,31 +183,131 @@ Add an **HTTP Request** node after the webhook:
 ### TikTok
 
 1. **Download Video from Dropbox:**
-   - Same as YouTube step 1
+   - **HTTP Request** node
+   - **Method:** GET
+   - **URL:** `{{ $('Get Video & Tokens').item.json.video.video_url }}`
+   - **Response Format:** File
+   - **Note:** Make sure the URL has `?dl=1` at the end for direct download
 
-2. **Initialize Upload:**
+2. **Extract File Metadata from Binary:**
+   - **Code** node (JavaScript)
+   - **Code:** (Copy this entire block - make sure no characters are missing)
+     ```javascript
+     // Get file size from HTTP response headers (most reliable method)
+     // The HTTP Request node with Response Format "File" includes content-length in headers
+     let videoSize = 0;
+     let binaryData = null;
+     
+     // Get size from content-length header
+     const httpResponse = $input.first();
+     if (httpResponse && httpResponse.json && httpResponse.json.headers) {
+       const contentLength = httpResponse.json.headers['content-length'];
+       if (contentLength) {
+         videoSize = parseInt(contentLength, 10) || 0;
+       }
+     }
+     
+     // Also try to access binary data (for passing it through to next node)
+     if ($binary && $binary.data) {
+       binaryData = $binary.data;
+     } else if ($input && $input.first() && $input.first().binary && $input.first().binary.data) {
+       binaryData = $input.first().binary.data;
+     } else {
+       // Reference the previous node by name
+       const prevNode = $('Download Video from Dropbox');
+       if (prevNode && prevNode.item && prevNode.item.binary && prevNode.item.binary.data) {
+         binaryData = prevNode.item.binary.data;
+       }
+     }
+     
+     // Calculate chunk size (10MB = 10,000,000 bytes)
+     const chunkSize = 10000000;
+     
+     // Calculate total number of chunks
+     const totalChunkCount = videoSize > 0 ? Math.ceil(videoSize / chunkSize) : 1;
+     
+     // Get video details from previous node
+     const videoDetails = $('Get Video & Tokens').item.json;
+     
+     // Get TikTok tokens
+     const tokens = videoDetails.platform_tokens || {};
+     
+     // Return the data
+     return {
+       json: {
+         video_size: videoSize,
+         chunk_size: chunkSize,
+         total_chunk_count: totalChunkCount,
+         post_info: {
+           title: videoDetails.video.title || 'Untitled Video',
+           privacy_level: "PUBLIC_TO_EVERYONE",
+           disable_duet: false,
+           disable_comment: false,
+           disable_stitch: false,
+           video_cover_timestamp_ms: 1000
+         },
+         source_info: {
+           source: "FILE_UPLOAD",
+           video_size: videoSize,
+           chunk_size: chunkSize,
+           total_chunk_count: totalChunkCount
+         },
+         access_token: tokens.access_token,
+         open_id: tokens.open_id || tokens.tiktok_open_id,
+         video_id: videoDetails.video.id,
+         creator_unique_identifier: videoDetails.video.creator_unique_identifier
+       },
+       binary: binaryData ? {
+         data: binaryData
+       } : undefined
+     };
+     ```
+
+3. **Initialize Upload:**
    - **HTTP Request** node
    - **Method:** POST
    - **URL:** `https://open.tiktokapis.com/v2/post/publish/inbox/video/init/`
    - **Headers:**
      ```
-     Authorization: Bearer {{ $json.platform_tokens.access_token }}
+     Authorization: Bearer {{ $('Extract File Metadata from Binary').item.json.access_token }}
+     Content-Type: application/json
+     ```
+   - **Body (JSON):**
+     ```json
+     {
+       "post_info": {{ $('Extract File Metadata from Binary').item.json.post_info }},
+       "source_info": {{ $('Extract File Metadata from Binary').item.json.source_info }}
+     }
+     ```
+   - **Response:** Returns `upload_url` and `publish_id`
+
+4. **Upload Video (Chunked Upload):**
+   - **HTTP Request** node (or Loop for multiple chunks)
+   - **Method:** PUT
+   - **URL:** `{{ $('Initialize Upload').item.json.data.upload_url }}`
+   - **Headers:**
+     ```
+     Content-Type: video/mp4
+     Content-Range: bytes 0-{{ $('Extract File Metadata from Binary').item.json.video_size - 1 }}/{{ $('Extract File Metadata from Binary').item.json.video_size }}
+     ```
+   - **Body:** Binary data from `$binary.data`
+   - **Note:** For large files, you may need to upload in chunks. See TikTok API docs for chunked upload details.
+
+5. **Publish Video:**
+   - **HTTP Request** node
+   - **Method:** POST
+   - **URL:** `https://open.tiktokapis.com/v2/post/publish/status/fetch/`
+   - **Headers:**
+     ```
+     Authorization: Bearer {{ $('Extract File Metadata from Binary').item.json.access_token }}
      Content-Type: application/json
      ```
    - **Body:**
      ```json
      {
-       "post_info": {
-         "title": "{{ $json.video.title }}",
-         "description": "{{ $json.video.description }}",
-         "privacy_level": "PUBLIC_TO_EVERYONE"
-       }
+       "publish_id": "{{ $('Initialize Upload').item.json.data.publish_id }}"
      }
      ```
-
-3. **Upload Video:**
-   - Use the upload URL from initialization
-   - Upload the binary file from Dropbox
 
 ---
 
@@ -357,6 +457,8 @@ SUPABASE_SERVICE_ROLE_KEY=...
 ---
 
 Ready to set up? Follow steps 1-7 above!
+
+
 
 
 

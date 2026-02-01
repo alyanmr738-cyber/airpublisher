@@ -15,7 +15,12 @@ export async function GET() {
     )
   }
   
-  const { getAppUrl } = await import('@/lib/utils/app-url')
+  // Helper to get app URL
+  const getAppUrl = () => {
+    return process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3000')
+  }
   const appUrl = getAppUrl()
   
   return NextResponse.json({

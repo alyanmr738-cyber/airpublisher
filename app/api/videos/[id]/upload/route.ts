@@ -185,7 +185,12 @@ export async function POST(
       formData.append('creator_unique_identifier', video.creator_unique_identifier)
       formData.append('file_name', fileName)
       // Get app URL (automatically uses Vercel URL if deployed)
-      const { getAppUrl } = await import('@/lib/utils/app-url')
+      // Helper to get app URL
+      const getAppUrl = () => {
+        return process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : 'http://localhost:3000')
+      }
       const appUrl = getAppUrl()
       formData.append('callback_url', `${appUrl}/api/webhooks/n8n/upload-complete`)
 

@@ -51,9 +51,6 @@ Report post status after attempting to post.
 #### `POST /api/webhooks/n8n/metrics`
 Send performance metrics for a video.
 
-#### `POST /api/webhooks/n8n/ai-content`
-Receive AI-generated content from AIR Ideas.
-
 #### `POST /api/webhooks/n8n/upload-complete`
 Report video processing completion.
 

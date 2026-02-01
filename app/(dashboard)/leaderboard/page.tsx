@@ -2,8 +2,6 @@ import { Trophy } from 'lucide-react'
 import { getLeaderboard } from '@/lib/db/leaderboard'
 import { getCurrentCreator } from '@/lib/db/creator'
 import Link from 'next/link'
-import { DecorativeCircles } from '@/components/leaderboard/decorative-circles'
-import { LeaderboardContent } from '@/components/leaderboard/leaderboard-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,8 +39,6 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-hidden">
-      <DecorativeCircles />
-      
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -58,11 +54,45 @@ export default async function LeaderboardPage() {
         </div>
 
         {/* Leaderboard Content */}
-        <LeaderboardContent
-          allTimeEntries={allTimeEntries}
-          weeklyEntries={weeklyEntries}
-          currentCreatorId={creator?.unique_identifier}
-        />
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">All Time</h2>
+            <div className="space-y-2">
+              {allTimeEntries.length > 0 ? (
+                allTimeEntries.map((entry, index) => (
+                  <div key={entry.creator_unique_identifier} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl font-bold w-8">#{index + 1}</span>
+                      <span>{entry.creator_unique_identifier}</span>
+                    </div>
+                    <span className="font-semibold">{entry.score}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/60">No entries yet</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Weekly</h2>
+            <div className="space-y-2">
+              {weeklyEntries.length > 0 ? (
+                weeklyEntries.map((entry, index) => (
+                  <div key={entry.creator_unique_identifier} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <span className="text-2xl font-bold w-8">#{index + 1}</span>
+                      <span>{entry.creator_unique_identifier}</span>
+                    </div>
+                    <span className="font-semibold">{entry.score}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/60">No entries yet</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

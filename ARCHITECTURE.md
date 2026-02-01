@@ -108,21 +108,6 @@ n8n calls POST /api/n8n/leaderboard-calculate
 Next.js recalculates ranks
 ```
 
-### 4. AI Content Ingestion Flow
-
-```
-AIR Ideas generates content
-    ↓
-AIR Ideas triggers n8n webhook
-    ↓
-n8n workflow receives content
-    ↓
-n8n calls POST /api/webhooks/n8n/ai-content
-    ↓
-Next.js creates draft video entry
-    ↓
-User can edit, schedule, or post
-```
 
 ## Key Design Decisions
 
@@ -304,6 +289,8 @@ failed   failed    (final)
 - [N8N_INTEGRATION.md](./N8N_INTEGRATION.md) - n8n integration guide
 - [API_REFERENCE.md](./API_REFERENCE.md) - API documentation
 - [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) - Feature overview
+
+
 
 
 

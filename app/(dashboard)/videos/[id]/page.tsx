@@ -265,7 +265,7 @@ export default function VideoWatchPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{video.platform_target}</Badge>
-                  <Badge variant="outline">{video.source_type}</Badge>
+                  <Badge variant="outline">{video.source_type === 'ugc' ? 'UGC' : 'Video'}</Badge>
                 </div>
               </div>
 
@@ -318,7 +318,7 @@ export default function VideoWatchPage() {
               </div>
               <div>
                 <p className="text-sm text-foreground/60 mb-1">Source Type</p>
-                <p className="font-medium capitalize">{video.source_type.replace('_', ' ')}</p>
+                <p className="font-medium">{video.source_type === 'ugc' ? 'UGC' : 'Video'}</p>
               </div>
               {video.posted_at && (
                 <div>

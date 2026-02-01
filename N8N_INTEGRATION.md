@@ -63,23 +63,7 @@ Supabase Database
 
 ---
 
-### 3. AI Content Ingestion
-
-**Trigger:** Webhook from AIR Ideas
-
-**Flow:**
-1. Receive webhook from AIR Ideas with generated content
-2. Call `POST /api/webhooks/n8n/ai-content` with content data
-3. (Optional) Notify creator via email/SMS
-
-**n8n Nodes:**
-- Webhook Trigger (from AIR Ideas)
-- HTTP Request (POST to AIR Publisher)
-- (Optional) Email/SMS notification
-
----
-
-### 4. Video Processing Pipeline
+### 3. Video Processing Pipeline
 
 **Trigger:** Webhook when video uploaded
 
@@ -278,8 +262,7 @@ Import or create the following workflows:
 
 1. **Scheduled Post Executor** (Cron → HTTP → Platform APIs → HTTP)
 2. **Metrics Collector** (Cron → Supabase → Platform APIs → HTTP)
-3. **AI Content Receiver** (Webhook → HTTP → Optional Notification)
-4. **Video Processor** (Webhook → FFmpeg → Storage → HTTP)
+3. **Video Processor** (Webhook → FFmpeg → Storage → HTTP)
 
 ### 3. Configure Platform APIs
 
@@ -443,6 +426,8 @@ curl -X GET "https://your-app.com/api/n8n/scheduled-posts?limit=10" \
 6. Document any custom workflows
 
 For questions or issues, refer to the main documentation or contact the development team.
+
+
 
 
 

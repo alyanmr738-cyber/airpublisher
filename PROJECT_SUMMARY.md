@@ -71,7 +71,6 @@
 ### Automation
 - [ ] Cron job for leaderboard calculations
 - [ ] Scheduled post execution
-- [ ] AI-generated content ingestion from AIR Ideas
 - [ ] Email notifications
 
 ### Advanced Features
@@ -172,6 +171,8 @@ airpublisher/
 - All placeholder logic is clearly marked with TODO comments
 - The design follows creator-first principles with a premium, high-leverage feel
 - The system is designed to integrate cleanly with other AIR products (Clone, Ideas, Courses)
+
+
 
 
 
