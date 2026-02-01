@@ -7,7 +7,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 async function refreshInstagramToken(
   accessToken: string,
   appId: string,
-  appSecret: string
+  appSecret: string,
+  creatorUniqueIdentifier: string
 ): Promise<{ access_token: string; expires_in: number } | null> {
   try {
     console.log('[refreshInstagramToken] Refreshing Instagram token')
@@ -107,7 +108,7 @@ export async function getValidInstagramAccessToken(
         return null
       }
 
-      const refreshResult = await refreshInstagramToken(accessToken, appId, appSecret)
+      const refreshResult = await refreshInstagramToken(accessToken, appId, appSecret, creatorUniqueIdentifier)
       
       if (!refreshResult) {
         console.error('[getValidInstagramAccessToken] Failed to refresh token')
