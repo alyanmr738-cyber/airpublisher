@@ -7,6 +7,9 @@
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- Function to refresh expired YouTube tokens
+-- Note: This function currently just identifies tokens that need refresh
+-- The actual refresh happens via the Edge Function when tokens are accessed
+-- or you can set up an external cron job to call the Edge Function
 CREATE OR REPLACE FUNCTION refresh_expired_youtube_tokens()
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -17,27 +20,19 @@ DECLARE
   v_refreshed_count INTEGER := 0;
 BEGIN
   -- Find tokens that are expired or expiring within 5 minutes
-  FOR v_token IN
-    SELECT 
-      creator_unique_identifier,
-      google_refresh_token,
-      refresh_token,
-      google_access_token,
-      expires_at
-    FROM airpublisher_youtube_tokens
-    WHERE (expires_at IS NULL OR expires_at <= (NOW() + INTERVAL '5 minutes'))
-      AND (google_refresh_token IS NOT NULL OR refresh_token IS NOT NULL)
-  LOOP
-    -- Call the Edge Function to refresh the token
-    -- Note: This requires the Edge Function to be deployed
-    -- We'll use pg_net if available, otherwise this will be handled by the app
-    
-    -- For now, mark tokens as needing refresh
-    -- The actual refresh will happen via the Edge Function when accessed
-    -- or via a separate cron job that calls the Edge Function
-    
-    v_refreshed_count := v_refreshed_count + 1;
-  END LOOP;
+  -- This function identifies tokens that need refresh
+  -- The actual refresh will happen:
+  -- 1. When n8n queries get_valid_youtube_token() and the app refreshes it
+  -- 2. When the Edge Function is called directly
+  -- 3. Via an external cron job that calls the Edge Function
+  
+  SELECT COUNT(*) INTO v_refreshed_count
+  FROM airpublisher_youtube_tokens
+  WHERE (expires_at IS NULL OR expires_at <= (NOW() + INTERVAL '5 minutes'))
+    AND google_refresh_token IS NOT NULL;
+  
+  -- Log how many tokens need refresh (for monitoring)
+  RAISE NOTICE 'Found % YouTube tokens that need refresh', v_refreshed_count;
   
   RETURN v_refreshed_count;
 END;

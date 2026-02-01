@@ -69,3 +69,4 @@ CREATE POLICY "Users can delete own comments" ON airpublisher_video_comments
 
 
 
+

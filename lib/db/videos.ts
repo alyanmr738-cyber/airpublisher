@@ -5,7 +5,7 @@ type Video = Database['public']['Tables']['air_publisher_videos']['Row']
 
 export async function getVideosByCreator(creatorUniqueIdentifier: string): Promise<Video[]> {
   const supabase = await createClient()
-
+  
   const { data: videos, error } = await (supabase
     .from('air_publisher_videos') as any)
     .select('*')
@@ -14,9 +14,9 @@ export async function getVideosByCreator(creatorUniqueIdentifier: string): Promi
 
   if (error) {
     console.error('Error fetching videos by creator:', error)
-    return []
-  }
-
+      return []
+    }
+    
   return videos || []
 }
 
@@ -40,9 +40,9 @@ export async function getAllPostedVideos(limit?: number, offset?: number): Promi
 
   if (error) {
     console.error('Error fetching posted videos:', error)
-    return []
+      return []
   }
-
+  
   return videos || []
 }
 
@@ -56,9 +56,9 @@ export async function getVideoById(videoId: string): Promise<Video | null> {
     .single()
 
   if (error || !video) {
-    return null
-  }
-
+      return null
+    }
+    
   return video as Video
 }
 
@@ -93,27 +93,6 @@ export async function incrementVideoViews(videoId: string): Promise<Video | null
   return updatedVideo as Video
 }
 
-export async function updateVideo(id: string, updates: Partial<Video>): Promise<Video | null> {
-  const supabase = await createClient()
-
-  const { data: video, error } = await (supabase
-    .from('air_publisher_videos') as any)
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error || !video) {
-    console.error('Error updating video:', error)
-    return null
-  }
-
-  return video as Video
-}
-
 export async function getScheduledVideos(creatorUniqueIdentifier?: string): Promise<Video[]> {
   const supabase = await createClient()
 
@@ -131,8 +110,43 @@ export async function getScheduledVideos(creatorUniqueIdentifier?: string): Prom
 
   if (error) {
     console.error('Error fetching scheduled videos:', error)
-    return []
+      return []
   }
 
   return videos || []
+}
+
+export async function createVideo(video: any): Promise<Video | null> {
+  const supabase = await createClient()
+  
+  const { data, error } = await (supabase
+    .from('air_publisher_videos') as any)
+    .insert(video)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating video:', error)
+    return null
+  }
+
+  return data as Video
+}
+
+export async function updateVideo(videoId: string, updates: any): Promise<Video | null> {
+  const supabase = await createClient()
+
+  const { data, error } = await (supabase
+    .from('air_publisher_videos') as any)
+    .update(updates)
+    .eq('id', videoId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating video:', error)
+    return null
+  }
+
+  return data as Video
 }

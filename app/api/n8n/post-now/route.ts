@@ -144,7 +144,7 @@ export async function POST(request: Request) {
     let validAccessToken: string | null = null
 
     if (platform === 'youtube') {
-      validAccessToken = await getValidYouTubeAccessToken(video.creator_unique_identifier)
+      validAccessToken = await getValidYouTubeAccessToken(tokens, video.creator_unique_identifier)
       if (!validAccessToken) {
         return NextResponse.json(
           {
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
         )
       }
     } else if (platform === 'instagram') {
-      validAccessToken = await getValidInstagramAccessToken(video.creator_unique_identifier)
+      validAccessToken = await getValidInstagramAccessToken(tokens, video.creator_unique_identifier)
       if (!validAccessToken) {
         return NextResponse.json(
           {

@@ -22,3 +22,4 @@ CREATE INDEX IF NOT EXISTS idx_air_publisher_videos_instagram_url
 CREATE INDEX IF NOT EXISTS idx_air_publisher_videos_tiktok_url 
   ON air_publisher_videos(tiktok_url) WHERE tiktok_url IS NOT NULL;
 
+

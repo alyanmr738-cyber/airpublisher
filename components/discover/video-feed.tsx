@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { Database } from '@/lib/supabase/types'
 
 type Video = Database['public']['Tables']['air_publisher_videos']['Row']
@@ -17,10 +18,11 @@ export function VideoFeed({ initialVideos, initialFilter }: VideoFeedProps) {
         <div key={video.id} className="rounded-lg border border-border overflow-hidden">
           {video.thumbnail_url && (
             <div className="aspect-video bg-muted overflow-hidden relative">
-              <img
+              <Image
                 src={video.thumbnail_url}
                 alt={video.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             </div>
           )}

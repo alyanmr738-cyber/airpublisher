@@ -13,13 +13,13 @@ SELECT
   -- Calculate next run (approximate)
   CASE 
     WHEN schedule = '*/10 * * * *' THEN 
-      NOW() + INTERVAL '10 minutes' - (EXTRACT(MINUTE FROM NOW())::INTEGER % 10 || ' minutes')::INTERVAL
+      (NOW() + INTERVAL '10 minutes' - (EXTRACT(MINUTE FROM NOW())::INTEGER % 10 || ' minutes')::INTERVAL)::TEXT
     WHEN schedule = '0 */6 * * *' THEN
-      DATE_TRUNC('hour', NOW()) + 
+      (DATE_TRUNC('hour', NOW()) + 
       CASE 
         WHEN EXTRACT(HOUR FROM NOW())::INTEGER % 6 = 0 THEN INTERVAL '6 hours'
-        ELSE (6 - (EXTRACT(HOUR FROM NOW())::INTEGER % 6)) || ' hours'
-      END
+        ELSE ((6 - (EXTRACT(HOUR FROM NOW())::INTEGER % 6)) || ' hours')::INTERVAL
+      END)::TEXT
     ELSE 'Unknown'
   END as estimated_next_run
 FROM cron.job

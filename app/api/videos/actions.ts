@@ -38,6 +38,9 @@ export async function createVideoAction(video: VideoInsert) {
   try {
     console.log('[createVideoAction] Attempting to create video with regular client...')
     const result = await createVideo(videoData)
+    if (!result) {
+      throw new Error('Failed to create video: createVideo returned null')
+    }
     console.log('[createVideoAction] ✅ Video created successfully with regular client:', result.id)
     return result
   } catch (error: any) {

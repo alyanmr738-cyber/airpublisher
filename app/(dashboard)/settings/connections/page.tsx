@@ -356,7 +356,6 @@ export default async function ConnectionsPage({
                   hasRefreshToken={!!youtubeRefreshToken}
                 />
                 <Button 
-                  asChild
                   variant="outline" 
                   className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isYouTubeRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
@@ -365,7 +364,6 @@ export default async function ConnectionsPage({
               </div>
             ) : (
               <Button 
-                asChild
                 className="w-full bg-red-500 hover:bg-red-600"
               >
                 <Link href="/api/auth/youtube">Connect YouTube</Link>
@@ -420,7 +418,6 @@ export default async function ConnectionsPage({
                   hasRefreshToken={!!instagramRefreshToken}
                 />
                 <Button 
-                  asChild
                   variant="outline" 
                   className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isInstagramRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
@@ -429,7 +426,6 @@ export default async function ConnectionsPage({
               </div>
             ) : (
               <Button 
-                asChild
                 className="w-full bg-pink-500 hover:bg-pink-600"
               >
                 <Link href="/api/auth/instagram">Connect Instagram</Link>
@@ -484,7 +480,6 @@ export default async function ConnectionsPage({
                   hasRefreshToken={!!tiktokRefreshToken}
                 />
                 <Button 
-                  asChild
                   variant="outline" 
                   className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isTikTokRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
@@ -493,7 +488,6 @@ export default async function ConnectionsPage({
               </div>
             ) : (
               <Button 
-                asChild
                 className="w-full bg-black hover:bg-gray-800 text-white"
               >
                 <Link href="/api/auth/tiktok">Connect TikTok</Link>

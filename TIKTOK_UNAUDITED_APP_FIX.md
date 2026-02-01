@@ -76,3 +76,4 @@ To get your app audited:
 - ⚠️ Videos will be private until app is audited
 - 📝 To post public videos, complete TikTok app audit
 
+

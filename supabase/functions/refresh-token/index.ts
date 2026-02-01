@@ -15,15 +15,32 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Log that the function was called
+  console.log('[refresh-token] Edge Function called', {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString(),
+  })
+
   try {
-    const { platform, creator_unique_identifier } = await req.json()
+    // Allow calls from same Supabase project without explicit auth
+    // This allows database functions to call via pg_net
+    // The Edge Function will use its own SUPABASE_SERVICE_ROLE_KEY from environment
+    
+    const body = await req.json()
+    console.log('[refresh-token] Request body:', body)
+    
+    const { platform, creator_unique_identifier } = body
 
     if (!platform || !creator_unique_identifier) {
+      console.error('[refresh-token] Missing required fields:', { platform, creator_unique_identifier })
       return new Response(
         JSON.stringify({ error: 'Missing platform or creator_unique_identifier' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('[refresh-token] Processing token refresh:', { platform, creator_unique_identifier })
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -38,11 +55,14 @@ serve(async (req) => {
       .maybeSingle()
 
     if (tokenError || !tokens) {
+      console.error('[refresh-token] No tokens found:', { tokenError, hasTokens: !!tokens })
       return new Response(
         JSON.stringify({ error: 'Tokens not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('[refresh-token] Found tokens, starting refresh for:', platform)
 
     let newAccessToken: string | null = null
     let newExpiresAt: string | null = null

@@ -335,3 +335,4 @@ export async function POST(request: NextRequest) {
 4. Add to your video management page
 5. Test scheduling and verify n8n picks it up
 
+

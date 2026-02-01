@@ -109,16 +109,16 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     NULL;
   END;
-  
-  -- Schedule new job
-  PERFORM cron.schedule(
-    'refresh-expired-youtube-tokens',
-    '*/10 * * * *', -- Every 10 minutes
-    $$
-    SELECT refresh_expired_youtube_tokens();
-    $$
-  );
 END $$;
+
+-- Schedule YouTube job (outside DO block since it returns a value)
+SELECT cron.schedule(
+  'refresh-expired-youtube-tokens',
+  '*/10 * * * *', -- Every 10 minutes
+  $$
+  SELECT refresh_expired_youtube_tokens();
+  $$
+);
 
 -- Schedule Instagram token refresh (will replace if already exists)
 DO $$
@@ -129,14 +129,14 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     NULL;
   END;
-  
-  -- Schedule new job
-  PERFORM cron.schedule(
-    'refresh-expired-instagram-tokens',
-    '0 */6 * * *', -- Every 6 hours (Instagram tokens last longer)
-    $$
-    SELECT refresh_expired_instagram_tokens();
-    $$
-  );
 END $$;
+
+-- Schedule Instagram job (outside DO block since it returns a value)
+SELECT cron.schedule(
+  'refresh-expired-instagram-tokens',
+  '0 */6 * * *', -- Every 6 hours (Instagram tokens last longer)
+  $$
+  SELECT refresh_expired_instagram_tokens();
+  $$
+);
 

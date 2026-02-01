@@ -87,3 +87,4 @@ If the update fails:
 - The `updated_at` column is automatically updated by the database trigger
 - You can update multiple fields in one operation
 
+

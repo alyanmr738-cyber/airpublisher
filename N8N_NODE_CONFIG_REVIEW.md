@@ -117,3 +117,4 @@ Then `inputDataFieldName: "data"` will work because it gets binary from the prev
 2. **Verify node names** match your actual workflow
 3. **Ensure binary is passed** from Code in JavaScript5 to HTTP Request7
 
+

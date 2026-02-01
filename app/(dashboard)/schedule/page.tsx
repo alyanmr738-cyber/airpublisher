@@ -60,7 +60,7 @@ export default async function SchedulePage() {
                   {format(new Date(date), 'EEEE, MMMM d, yyyy')}
                 </h2>
                 <div className="space-y-3">
-                  {videos.map((video) => (
+                  {(videos as typeof scheduledVideos).map((video) => (
                     <Card key={video.id} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between">
