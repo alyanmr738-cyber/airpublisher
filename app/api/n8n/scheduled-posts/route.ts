@@ -27,7 +27,41 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50', 10)
-    const before = searchParams.get('before') || new Date().toISOString()
+    const beforeParam = searchParams.get('before')
+    
+    // Parse and normalize the 'before' timestamp
+    // Handle malformed timestamps from n8n (e.g., "2026-02-01T17:04:42.311 05:00")
+    let before: string
+    if (beforeParam) {
+      try {
+        // Try to parse the timestamp - handle various formats
+        // Fix common issues: space before timezone, missing Z, etc.
+        let normalizedTimestamp = beforeParam.trim()
+        
+        // Fix space before timezone (e.g., "2026-02-01T17:04:42.311 05:00" -> "2026-02-01T17:04:42.311+05:00")
+        normalizedTimestamp = normalizedTimestamp.replace(/(\d)\s+([+-]\d{2}):(\d{2})$/, '$1$2:$3')
+        normalizedTimestamp = normalizedTimestamp.replace(/(\d)\s+(\d{2}):(\d{2})$/, '$1+$2:$3')
+        
+        // If no timezone, assume UTC
+        if (!normalizedTimestamp.includes('Z') && !normalizedTimestamp.match(/[+-]\d{2}:\d{2}$/)) {
+          normalizedTimestamp = normalizedTimestamp + 'Z'
+        }
+        
+        // Validate by parsing
+        const parsedDate = new Date(normalizedTimestamp)
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error('Invalid date format')
+        }
+        
+        // Convert to ISO string (ensures proper format)
+        before = parsedDate.toISOString()
+      } catch (error) {
+        console.warn('[scheduled-posts] Invalid before parameter, using current time:', beforeParam)
+        before = new Date().toISOString()
+      }
+    } else {
+      before = new Date().toISOString()
+    }
 
     // Create Supabase client with service role
     const supabase = await createClient()

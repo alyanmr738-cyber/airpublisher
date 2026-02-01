@@ -44,14 +44,15 @@ Rule: Every 10 minutes
 **Name:** "Get Scheduled Posts"
 
 **Method:** GET  
-**URL:** `https://airpublisher.vercel.app/api/n8n/scheduled-posts?limit=50&before={{ $now }}`
+**URL:** `https://airpublisher.vercel.app/api/n8n/scheduled-posts?limit=50&before={{ $now.toISO() }}`
 
 **Headers:**
 - `x-n8n-api-key: {{ $env.N8N_API_KEY }}`
 
 **Query Parameters:**
 - `limit`: 50 (max posts to fetch per run)
-- `before`: `{{ $now }}` (current time - gets posts due now or earlier)
+- `before`: `{{ $now.toISO() }}` (current time in ISO format - gets posts due now or earlier)
+- **Note:** You can also omit `before` parameter - it defaults to current time
 
 **Expected Response:**
 ```json
@@ -107,11 +108,13 @@ Split the `posts` array so each post is processed individually.
   "success": true,
   "video": { ... },
   "platform_tokens": {
-    "access_token": "...",
+    "access_token": "...",  // Automatically refreshed if expired
     "refresh_token": "..."
   }
 }
 ```
+
+**Note:** This endpoint **automatically refreshes tokens** via HTTP if they're expired. No extra steps needed! See `N8N_TOKEN_REFRESH_GUIDE.md` for details.
 
 ### 6. IF Node: Platform Router
 
