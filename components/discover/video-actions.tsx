@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Heart, MessageCircle, Send } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
@@ -13,6 +14,7 @@ interface VideoActionsProps {
 }
 
 export function VideoActions({ videoId, initialLikeCount = 0, initialLiked = false, onCommentAdded }: VideoActionsProps) {
+  const router = useRouter()
   const [liked, setLiked] = useState(initialLiked)
   const [likeCount, setLikeCount] = useState(initialLikeCount)
   const [showComments, setShowComments] = useState(false)
@@ -115,6 +117,13 @@ export function VideoActions({ videoId, initialLikeCount = 0, initialLiked = fal
     }
   }
 
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Navigate to video page when clicking comment icon
+    router.push(`/videos/${videoId}`)
+  }
+
   const toggleComments = () => {
     if (!showComments) {
       loadComments()
@@ -142,7 +151,7 @@ export function VideoActions({ videoId, initialLikeCount = 0, initialLiked = fal
         <Button
           variant="ghost"
           size="sm"
-          onClick={toggleComments}
+          onClick={handleCommentClick}
           className="flex items-center gap-2"
         >
           <MessageCircle className="h-5 w-5" />

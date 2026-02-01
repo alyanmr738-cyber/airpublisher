@@ -151,18 +151,40 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
     if (!showMenu && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
       const menuHeight = 200 // Approximate menu height
+      const menuWidth = 256 // w-64 = 256px
       const viewportHeight = window.innerHeight
+      const viewportWidth = window.innerWidth
       const spaceBelow = viewportHeight - rect.bottom
       const spaceAbove = rect.top
       
+      // Calculate position - use viewport coordinates (getBoundingClientRect already gives viewport-relative)
+      let top = rect.bottom + 8
+      let left = rect.left
+      
       // If not enough space below, show above the button
-      const top = spaceBelow < menuHeight && spaceAbove > spaceBelow
-        ? rect.top + window.scrollY - menuHeight - 8
-        : rect.bottom + window.scrollY + 8
+      if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+        top = rect.top - menuHeight - 8
+      }
+      
+      // Ensure menu doesn't go off-screen horizontally
+      if (left + menuWidth > viewportWidth) {
+        left = viewportWidth - menuWidth - 8
+      }
+      if (left < 8) {
+        left = 8
+      }
+      
+      // Ensure menu doesn't go off-screen vertically
+      if (top + menuHeight > viewportHeight) {
+        top = viewportHeight - menuHeight - 8
+      }
+      if (top < 8) {
+        top = 8
+      }
       
       setMenuPosition({
         top,
-        left: rect.left + window.scrollX,
+        left,
       })
     }
     setShowMenu(!showMenu)
@@ -185,16 +207,18 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-[9998] bg-black/20"
+            className="fixed inset-0 z-[99998] bg-black/20"
             onClick={() => setShowMenu(false)}
           />
           
           {/* Menu - Fixed positioning to hover over page */}
           <div 
-            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-xl z-[9999] p-2"
+            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-2xl z-[99999] p-2"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
+              maxHeight: 'calc(100vh - 16px)',
+              overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >

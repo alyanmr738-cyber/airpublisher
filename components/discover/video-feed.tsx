@@ -42,7 +42,9 @@ function AutoPlayVideo({ src, title, videoId }: { src: string; title: string; vi
     }
   }, [])
 
-  const toggleMute = () => {
+  const toggleMute = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (videoRef.current) {
       videoRef.current.muted = !videoRef.current.muted
       setIsMuted(videoRef.current.muted)
@@ -52,7 +54,7 @@ function AutoPlayVideo({ src, title, videoId }: { src: string; title: string; vi
   const streamUrl = getVideoStreamUrl(videoId)
 
   return (
-    <div className="relative w-full group">
+    <div className="relative w-full group" onClick={(e) => e.stopPropagation()}>
       <video
         ref={videoRef}
         src={streamUrl}
@@ -61,6 +63,7 @@ function AutoPlayVideo({ src, title, videoId }: { src: string; title: string; vi
         muted
         playsInline
         loop
+        onClick={(e) => e.stopPropagation()}
         onMouseEnter={() => {
           if (videoRef.current && !isPlaying) {
             videoRef.current.play().catch(() => {})
@@ -78,7 +81,11 @@ function AutoPlayVideo({ src, title, videoId }: { src: string; title: string; vi
       {/* Mute/Unmute Button */}
       <button
         onClick={toggleMute}
-        className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 rounded-full p-2 transition-all opacity-0 group-hover:opacity-100"
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+        }}
+        className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 rounded-full p-2 transition-all opacity-0 group-hover:opacity-100 z-10"
         aria-label={isMuted ? 'Unmute video' : 'Mute video'}
       >
         {isMuted ? (
@@ -279,40 +286,42 @@ export function VideoFeed({ initialVideos, initialFilter }: VideoFeedProps) {
               </div>
 
               {/* Video Content */}
-              <Link href={`/videos/${video.id}`}>
-                <div className="relative w-full bg-black">
-                  {video.video_url ? (
+              <div className="relative w-full bg-black">
+                {video.video_url ? (
+                  <div onClick={(e) => e.stopPropagation()}>
                     <AutoPlayVideo src={video.video_url} title={video.title} videoId={video.id} />
-                  ) : video.thumbnail_url ? (
-                    <div className="relative w-full aspect-video">
-                      <Image
-                        src={video.thumbnail_url}
-                        alt={video.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 800px"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full aspect-video flex flex-col items-center justify-center bg-white/5">
-                      <span className="text-white/50 text-sm">No video available</span>
-                    </div>
-                  )}
-                </div>
-              </Link>
+                  </div>
+                ) : (
+                  <Link href={`/videos/${video.id}`}>
+                    {video.thumbnail_url ? (
+                      <div className="relative w-full aspect-video">
+                        <Image
+                          src={video.thumbnail_url}
+                          alt={video.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 800px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-video flex flex-col items-center justify-center bg-white/5">
+                        <span className="text-white/50 text-sm">No video available</span>
+                      </div>
+                    )}
+                  </Link>
+                )}
+              </div>
 
               {/* Title and Description */}
               <div className="p-4">
-                <Link href={`/videos/${video.id}`}>
-                  <h3 className="font-semibold text-lg mb-2 text-white hover:text-[#89CFF0] transition-colors">
-                    {video.title}
-                  </h3>
-                  {video.description && (
-                    <p className="text-sm text-white/70 line-clamp-3 mb-3">
-                      {video.description}
-                    </p>
-                  )}
-                </Link>
+                <h3 className="font-semibold text-lg mb-2 text-white">
+                  {video.title}
+                </h3>
+                {video.description && (
+                  <p className="text-sm text-white/70 line-clamp-3 mb-3">
+                    {video.description}
+                  </p>
+                )}
 
                 {/* Engagement Stats */}
                 <div className="flex items-center gap-4 text-sm text-white/60 mb-3">
