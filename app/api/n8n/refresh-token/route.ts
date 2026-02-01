@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { getValidYouTubeAccessToken } from '@/lib/youtube/tokens'
 import { getValidInstagramAccessToken } from '@/lib/instagram/tokens'
@@ -28,17 +29,48 @@ import { getValidInstagramAccessToken } from '@/lib/instagram/tokens'
 export async function POST(request: NextRequest) {
   try {
     // Note: No API key required - token refresh is allowed for any creator
-    // Security: Requires creator_unique_identifier which is creator-specific
+    // Security: Gets creator from authenticated session
     
     // Parse request body
     const body = await request.json()
-    const { platform, creator_unique_identifier } = body
+    const { platform, creator_unique_identifier: providedCreatorId } = body
 
-    if (!platform || !creator_unique_identifier) {
+    if (!platform) {
       return NextResponse.json(
-        { error: 'Missing required fields: platform, creator_unique_identifier' },
+        { error: 'Missing required field: platform' },
         { status: 400 }
       )
+    }
+
+    // Get creator_unique_identifier from session if not provided
+    let creator_unique_identifier = providedCreatorId
+    
+    if (!creator_unique_identifier) {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'Unauthorized - must be logged in or provide creator_unique_identifier' },
+          { status: 401 }
+        )
+      }
+
+      // Get creator profile
+      const { data: profile } = await (supabase
+        .from('airpublisher_creator_profiles') as any)
+        .select('unique_identifier')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!profile) {
+        return NextResponse.json(
+          { error: 'Creator profile not found' },
+          { status: 404 }
+        )
+      }
+
+      creator_unique_identifier = (profile as any).unique_identifier
     }
 
     if (!['youtube', 'instagram', 'tiktok'].includes(platform)) {

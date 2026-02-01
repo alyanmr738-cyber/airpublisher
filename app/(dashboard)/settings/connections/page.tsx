@@ -10,7 +10,6 @@ import { RefreshOnSuccess } from '@/components/settings/refresh-on-success'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { SignOutButton } from '@/components/settings/sign-out-button'
-import { OAuthConnectButton } from '@/components/settings/oauth-connect-button'
 
 export default async function ConnectionsPage({
   searchParams,
@@ -111,17 +110,17 @@ export default async function ConnectionsPage({
     const [youtubeNew, instagramNew, tiktokNew] = await Promise.all([
       (supabase
         .from('airpublisher_youtube_tokens') as any)
-        .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at')
+        .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at, google_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
       (supabase
         .from('airpublisher_instagram_tokens') as any)
-        .select('user_id, creator_unique_identifier, instagram_id, username, expires_at')
+        .select('user_id, creator_unique_identifier, instagram_id, username, expires_at, facebook_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
       (supabase
         .from('airpublisher_tiktok_tokens') as any)
-        .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at')
+        .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at, tiktok_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle(),
     ])
@@ -148,7 +147,7 @@ export default async function ConnectionsPage({
       console.log('[ConnectionsPage] Trying service role for YouTube tokens...')
       const { data: serviceData, error: serviceError } = await (serviceClient
         .from('airpublisher_youtube_tokens') as any)
-        .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at')
+        .select('user_id, creator_unique_identifier, channel_id, handle, channel_title, expires_at, google_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
       
@@ -163,7 +162,7 @@ export default async function ConnectionsPage({
     if (!instagramTokens.data && serviceClient && (instagramNew.error || !instagramNew.data)) {
       const { data: serviceData } = await (serviceClient
         .from('airpublisher_instagram_tokens') as any)
-        .select('user_id, creator_unique_identifier, instagram_id, username, expires_at')
+        .select('user_id, creator_unique_identifier, instagram_id, username, expires_at, facebook_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
       if (serviceData) instagramTokens = { data: serviceData, error: null }
@@ -172,7 +171,7 @@ export default async function ConnectionsPage({
     if (!tiktokTokens.data && serviceClient && (tiktokNew.error || !tiktokNew.data)) {
       const { data: serviceData } = await (serviceClient
         .from('airpublisher_tiktok_tokens') as any)
-        .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at')
+        .select('user_id, creator_unique_identifier, tiktok_open_id, display_name, expires_at, tiktok_refresh_token')
         .eq('creator_unique_identifier', creator.unique_identifier)
         .maybeSingle()
       if (serviceData) tiktokTokens = { data: serviceData, error: null }
@@ -229,7 +228,7 @@ export default async function ConnectionsPage({
   const isInstagramConnected = !!instagramTokens.data
   const isTikTokConnected = !!tiktokTokens.data
 
-  // Check if tokens are expired
+  // Check if access tokens are expired (but can be auto-refreshed)
   const youtubeExpiresAt = (youtubeTokens.data as any)?.expires_at
   const instagramExpiresAt = (instagramTokens.data as any)?.expires_at
   const tiktokExpiresAt = (tiktokTokens.data as any)?.expires_at
@@ -243,6 +242,18 @@ export default async function ConnectionsPage({
   const isTikTokExpired = isTikTokConnected && tiktokExpiresAt
     ? new Date(tiktokExpiresAt) < new Date()
     : false
+
+  // Check refresh token status (if refresh token is expired, user needs to reconnect)
+  // For now, we'll check by trying to refresh - but this is expensive, so we'll do it client-side
+  // Or we can check if refresh token exists
+  const youtubeRefreshToken = (youtubeTokens.data as any)?.google_refresh_token
+  const instagramRefreshToken = (instagramTokens.data as any)?.facebook_refresh_token
+  const tiktokRefreshToken = (tiktokTokens.data as any)?.tiktok_refresh_token
+
+  // If access token is expired but no refresh token, refresh token is likely expired/invalid
+  const isYouTubeRefreshTokenExpired = isYouTubeConnected && isYouTubeExpired && !youtubeRefreshToken
+  const isInstagramRefreshTokenExpired = isInstagramConnected && isInstagramExpired && !instagramRefreshToken
+  const isTikTokRefreshTokenExpired = isTikTokConnected && isTikTokExpired && !tiktokRefreshToken
 
   return (
     <div className="space-y-8">
@@ -312,8 +323,17 @@ export default async function ConnectionsPage({
                 </div>
               </div>
               {isYouTubeConnected && (
-                <Badge variant={isYouTubeExpired ? 'default' : 'success'} className={isYouTubeExpired ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'}>
-                  {isYouTubeExpired ? 'Expired' : 'Connected'}
+                <Badge 
+                  variant={isYouTubeRefreshTokenExpired ? 'default' : 'success'} 
+                  className={
+                    isYouTubeRefreshTokenExpired 
+                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                      : isYouTubeExpired
+                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'
+                  }
+                >
+                  {isYouTubeRefreshTokenExpired ? 'Reconnect Required' : isYouTubeExpired ? 'Auto-Refresh' : 'Connected'}
                 </Badge>
               )}
             </div>
@@ -328,24 +348,27 @@ export default async function ConnectionsPage({
                     <p className="text-xs text-white/50">ID: {(youtubeTokens.data as any).channel_id}</p>
                   )}
                 </div>
-                {isYouTubeExpired && (
-                  <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
-                )}
-                <OAuthConnectButton 
-                  oauthUrl="/api/auth/youtube"
+                <RefreshTokenStatus
+                  platform="youtube"
+                  isConnected={isYouTubeConnected}
+                  accessTokenExpired={isYouTubeExpired}
+                  hasRefreshToken={!!youtubeRefreshToken}
+                />
+                <Button 
+                  asChild
                   variant="outline" 
-                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                  className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isYouTubeRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
-                  {isYouTubeExpired ? 'Reconnect' : 'Update Connection'}
-                </OAuthConnectButton>
+                  <Link href="/api/auth/youtube">{isYouTubeRefreshTokenExpired ? 'Update Connection' : isYouTubeExpired ? 'Reconnect' : 'Update Connection'}</Link>
+                </Button>
               </div>
             ) : (
-              <OAuthConnectButton 
-                oauthUrl="/api/auth/youtube"
+              <Button 
+                asChild
                 className="w-full bg-red-500 hover:bg-red-600"
               >
-                Connect YouTube
-              </OAuthConnectButton>
+                <Link href="/api/auth/youtube">Connect YouTube</Link>
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -364,8 +387,17 @@ export default async function ConnectionsPage({
                 </div>
               </div>
               {isInstagramConnected && (
-                <Badge variant={isInstagramExpired ? 'default' : 'success'} className={isInstagramExpired ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'}>
-                  {isInstagramExpired ? 'Expired' : 'Connected'}
+                <Badge 
+                  variant={isInstagramRefreshTokenExpired ? 'default' : 'success'} 
+                  className={
+                    isInstagramRefreshTokenExpired 
+                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                      : isInstagramExpired
+                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'
+                  }
+                >
+                  {isInstagramRefreshTokenExpired ? 'Reconnect Required' : isInstagramExpired ? 'Auto-Refresh' : 'Connected'}
                 </Badge>
               )}
             </div>
@@ -380,24 +412,27 @@ export default async function ConnectionsPage({
                     <p className="text-xs text-white/50">ID: {(instagramTokens.data as any).instagram_id}</p>
                   )}
                 </div>
-                {isInstagramExpired && (
-                  <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
-                )}
-                <OAuthConnectButton 
-                  oauthUrl="/api/auth/instagram"
+                <RefreshTokenStatus
+                  platform="instagram"
+                  isConnected={isInstagramConnected}
+                  accessTokenExpired={isInstagramExpired}
+                  hasRefreshToken={!!instagramRefreshToken}
+                />
+                <Button 
+                  asChild
                   variant="outline" 
-                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                  className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isInstagramRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
-                  {isInstagramExpired ? 'Reconnect' : 'Update Connection'}
-                </OAuthConnectButton>
+                  <Link href="/api/auth/instagram">{isInstagramRefreshTokenExpired ? 'Update Connection' : isInstagramExpired ? 'Reconnect' : 'Update Connection'}</Link>
+                </Button>
               </div>
             ) : (
-              <OAuthConnectButton 
-                oauthUrl="/api/auth/instagram"
+              <Button 
+                asChild
                 className="w-full bg-pink-500 hover:bg-pink-600"
               >
-                Connect Instagram
-              </OAuthConnectButton>
+                <Link href="/api/auth/instagram">Connect Instagram</Link>
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -416,8 +451,17 @@ export default async function ConnectionsPage({
                 </div>
               </div>
               {isTikTokConnected && (
-                <Badge variant={isTikTokExpired ? 'default' : 'success'} className={isTikTokExpired ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'}>
-                  {isTikTokExpired ? 'Expired' : 'Connected'}
+                <Badge 
+                  variant={isTikTokRefreshTokenExpired ? 'default' : 'success'} 
+                  className={
+                    isTikTokRefreshTokenExpired 
+                      ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+                      : isTikTokExpired
+                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      : 'bg-[#89CFF0]/20 text-[#89CFF0] border-[#89CFF0]/30'
+                  }
+                >
+                  {isTikTokRefreshTokenExpired ? 'Reconnect Required' : isTikTokExpired ? 'Auto-Refresh' : 'Connected'}
                 </Badge>
               )}
             </div>
@@ -432,24 +476,27 @@ export default async function ConnectionsPage({
                     <p className="text-xs text-white/50">ID: {(tiktokTokens.data as any).tiktok_open_id}</p>
                   )}
                 </div>
-                {isTikTokExpired && (
-                  <p className="text-sm text-yellow-400">Your token has expired. Please reconnect.</p>
-                )}
-                <OAuthConnectButton 
-                  oauthUrl="/api/auth/tiktok"
+                <RefreshTokenStatus
+                  platform="tiktok"
+                  isConnected={isTikTokConnected}
+                  accessTokenExpired={isTikTokExpired}
+                  hasRefreshToken={!!tiktokRefreshToken}
+                />
+                <Button 
+                  asChild
                   variant="outline" 
-                  className="w-full bg-white/10 text-white hover:bg-white/20 border-white/10"
+                  className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isTikTokRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
                 >
-                  {isTikTokExpired ? 'Reconnect' : 'Update Connection'}
-                </OAuthConnectButton>
+                  <Link href="/api/auth/tiktok">{isTikTokRefreshTokenExpired ? 'Update Connection' : isTikTokExpired ? 'Reconnect' : 'Update Connection'}</Link>
+                </Button>
               </div>
             ) : (
-              <OAuthConnectButton 
-                oauthUrl="/api/auth/tiktok"
+              <Button 
+                asChild
                 className="w-full bg-black hover:bg-gray-800 text-white"
               >
-                Connect TikTok
-              </OAuthConnectButton>
+                <Link href="/api/auth/tiktok">Connect TikTok</Link>
+              </Button>
             )}
           </CardContent>
         </Card>
