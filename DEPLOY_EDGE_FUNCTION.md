@@ -49,8 +49,8 @@ After deploying, set these secrets in Supabase Dashboard:
 2. Add these environment variables:
 
 ```
-SUPABASE_URL_ALYAN=https://pezvnqhexxttlhcnbtta.supabase.co
-SUPABASE_SERVICE_ROLE_KEY_ALYAN=your_service_role_key_here
+SUPABASE_URL=https://pezvnqhexxttlhcnbtta.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 GOOGLE_CLIENT_ID_ALYAN=your_google_client_id
 GOOGLE_CLIENT_SECRET_ALYAN=your_google_client_secret
 INSTAGRAM_APP_ID_ALYAN=your_instagram_app_id (or META_APP_ID_ALYAN)
@@ -59,7 +59,9 @@ TIKTOK_CLIENT_KEY_ALYAN=your_tiktok_client_key
 TIKTOK_CLIENT_SECRET_ALYAN=your_tiktok_client_secret
 ```
 
-**Note:** The function also supports the non-suffixed versions as fallback for backward compatibility.
+**Note:** 
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` do NOT have the `_ALYAN` suffix (these are standard Supabase variables)
+- Only OAuth credentials (Google, Instagram, TikTok) use the `_ALYAN` suffix
 
 **Note:** The `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are automatically available, but you can set them explicitly if needed.
 
@@ -125,12 +127,13 @@ https://pezvnqhexxttlhcnbtta.supabase.co/functions/v1/refresh-token
 - ✅ **Instagram** - Uses Instagram Graph API refresh endpoint
 - ✅ **TikTok** - Uses TikTok OAuth refresh endpoint
 
-## Environment Variables (with _ALYAN suffix)
+## Environment Variables
 
-All environment variables should use the `_ALYAN` suffix:
+**Supabase Variables (NO _ALYAN suffix):**
+- `SUPABASE_URL` - Supabase project URL (auto-set by Supabase)
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (auto-set by Supabase)
 
-- `SUPABASE_URL_ALYAN` - Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY_ALYAN` - Service role key
+**OAuth Credentials (WITH _ALYAN suffix):**
 - `GOOGLE_CLIENT_ID_ALYAN` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET_ALYAN` - Google OAuth client secret
 - `INSTAGRAM_APP_ID_ALYAN` (or `META_APP_ID_ALYAN`) - Instagram/Meta app ID
@@ -138,7 +141,7 @@ All environment variables should use the `_ALYAN` suffix:
 - `TIKTOK_CLIENT_KEY_ALYAN` - TikTok OAuth client key
 - `TIKTOK_CLIENT_SECRET_ALYAN` - TikTok OAuth client secret
 
-**Fallback:** The function also supports non-suffixed versions for backward compatibility.
+**Note:** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are typically auto-set by Supabase, but you can set them explicitly if needed.
 
 ## Troubleshooting
 
