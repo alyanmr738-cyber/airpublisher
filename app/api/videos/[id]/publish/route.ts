@@ -90,55 +90,49 @@ export async function POST(
         message: 'Video scheduled successfully',
       })
     } else {
-      // Post now - create scheduled post with immediate time
-      // n8n cron will pick it up and post it immediately
-      const now = new Date()
+      // Post now - trigger n8n webhook directly for instant posting
+      const appUrl = getAppUrl()
+      const webhookUrl = `${appUrl}/api/webhooks/n8n/post-video`
       
-      // Insert into scheduled_posts table with immediate time
-      const { data: scheduledPost, error: scheduleError } = await (supabase
-        .from('air_publisher_scheduled_posts') as any)
-        .insert({
-          video_id: videoId,
-          creator_unique_identifier: (profile as any).creator_unique_identifier,
-          platform: platform,
-          scheduled_at: now.toISOString(),
-          status: 'pending',
-        })
-        .select()
-        .single()
+      console.log('[publish] Triggering post-video webhook:', {
+        webhookUrl,
+        videoId,
+        platform,
+      })
 
-      if (scheduleError) {
-        console.error('[publish] Error creating immediate scheduled post:', scheduleError)
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-n8n-api-key': process.env.N8N_API_KEY || '',
+        },
+        body: JSON.stringify({
+          video_id: videoId,
+          platform: platform,
+        }),
+      })
+
+      if (!response.ok) {
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        console.error('[publish] Webhook error:', errorData)
         return NextResponse.json(
-          { error: 'Failed to schedule post', details: scheduleError.message },
-          { status: 500 }
+          { error: 'Failed to post video', details: errorData.error || 'Unknown error' },
+          { status: response.status || 500 }
         )
       }
 
-      // Update video status to scheduled
-      const { error: updateError } = await (supabase
-        .from('air_publisher_videos') as any)
-        .update({ 
-          status: 'scheduled',
-          scheduled_at: now.toISOString(),
-        })
-        .eq('id', videoId)
-
-      if (updateError) {
-        console.error('[publish] Error updating video status:', updateError)
-        // Don't fail the request if status update fails
-      }
-
-      console.log('[publish] ✅ Video scheduled for immediate posting:', {
-        videoId,
-        platform,
-        scheduledPost: scheduledPost?.id,
-      })
+      const result = await response.json()
+      console.log('[publish] ✅ Video posted successfully:', result)
 
       return NextResponse.json({
         success: true,
-        scheduled_post: scheduledPost,
-        message: 'Video queued for posting. n8n will process it shortly.',
+        message: 'Video posted successfully',
+        result,
       })
     }
   } catch (error) {

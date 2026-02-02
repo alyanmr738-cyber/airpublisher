@@ -207,13 +207,13 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-[99998] bg-black/20"
+            className="fixed inset-0 z-[999998] bg-black/20"
             onClick={() => setShowMenu(false)}
           />
           
           {/* Menu - Fixed positioning to hover over page */}
           <div 
-            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-2xl z-[99999] p-2 pointer-events-auto"
+            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-2xl z-[999999] p-2 pointer-events-auto"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -265,13 +265,13 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
       {showDateTimePicker && selectedPlatform && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-[9998]"
+            className="fixed inset-0 bg-black/50 z-[999998]"
             onClick={() => {
               setShowDateTimePicker(false)
               setSelectedPlatform(null)
             }}
           />
-          <div className="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none">
+          <div className="fixed inset-0 flex items-center justify-center z-[999999] pointer-events-none">
             <div 
               className="bg-black border border-white/20 rounded-lg shadow-xl p-6 w-full max-w-md mx-4 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
