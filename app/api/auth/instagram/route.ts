@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     if (!supabaseUrl) {
+      console.error('[Instagram OAuth] NEXT_PUBLIC_SUPABASE_URL not configured')
       return NextResponse.json(
         { error: 'Supabase URL not configured' },
         { status: 500 }
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
     edgeFunctionInitUrl.searchParams.set('action', 'init')
     edgeFunctionInitUrl.searchParams.set('origin', origin)
 
+    console.log('[Instagram OAuth] Redirecting to Edge Function:', edgeFunctionInitUrl.toString())
     return NextResponse.redirect(edgeFunctionInitUrl.toString())
   } catch (error) {
     console.error('Instagram OAuth initiation error:', error)
