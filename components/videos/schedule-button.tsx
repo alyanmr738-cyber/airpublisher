@@ -213,7 +213,7 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
           
           {/* Menu - Fixed positioning to hover over page */}
           <div 
-            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-2xl z-[99999] p-2"
+            className="fixed w-64 bg-black border border-white/20 rounded-lg shadow-2xl z-[99999] p-2 pointer-events-auto"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -221,6 +221,7 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
               overflowY: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
               <div className="space-y-1">
                 {platforms.map(({ platform, name, icon }) => {
@@ -230,10 +231,14 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
                   return (
                     <button
                       key={platform}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
                       onClick={(e) => {
                         e.stopPropagation()
+                        e.preventDefault()
                         handlePlatformSelect(platform)
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
                       }}
                       disabled={!isConnected || scheduling}
                     >
@@ -270,6 +275,7 @@ export function ScheduleButton({ videoId, creatorUniqueIdentifier }: ScheduleBut
             <div 
               className="bg-black border border-white/20 rounded-lg shadow-xl p-6 w-full max-w-md mx-4 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-semibold mb-4 text-white">
                 Schedule for {platforms.find(p => p.platform === selectedPlatform)?.name}

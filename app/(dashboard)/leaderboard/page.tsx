@@ -38,23 +38,22 @@ export default async function LeaderboardPage() {
   const weeklyEntries = globalWeekly
 
   return (
-    <div className="relative min-h-screen bg-black text-white overflow-hidden">
-      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
-              ←
-            </Link>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white flex items-center gap-3">
-              Leaderboard
-              <Trophy className="h-8 w-8 text-yellow-400" />
-            </h1>
-          </div>
+    <div className="relative min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+            ←
+          </Link>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white flex items-center gap-3">
+            Leaderboard
+            <Trophy className="h-8 w-8 text-yellow-400" />
+          </h1>
         </div>
+      </div>
 
-        {/* Leaderboard Content */}
-        <div className="space-y-8">
+      {/* Leaderboard Content */}
+      <div className="space-y-8">
           <div>
             <h2 className="text-2xl font-bold mb-4">All Time</h2>
             <div className="space-y-2">
@@ -93,7 +92,6 @@ export default async function LeaderboardPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   )
 }
