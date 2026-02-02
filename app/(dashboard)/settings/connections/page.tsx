@@ -355,19 +355,23 @@ export default async function ConnectionsPage({
                   accessTokenExpired={isYouTubeExpired}
                   hasRefreshToken={!!youtubeRefreshToken}
                 />
-                <Button 
-                  variant="outline" 
-                  className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isYouTubeRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
-                >
-                  <Link href="/api/auth/youtube">{isYouTubeRefreshTokenExpired ? 'Update Connection' : isYouTubeExpired ? 'Reconnect' : 'Update Connection'}</Link>
-                </Button>
+                <a href="/api/auth/youtube">
+                  <Button 
+                    variant="outline" 
+                    className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isYouTubeRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
+                  >
+                    {isYouTubeRefreshTokenExpired ? 'Update Connection' : isYouTubeExpired ? 'Reconnect' : 'Update Connection'}
+                  </Button>
+                </a>
               </div>
             ) : (
-              <Button 
-                className="w-full bg-red-500 hover:bg-red-600"
-              >
-                <Link href="/api/auth/youtube">Connect YouTube</Link>
-              </Button>
+              <a href="/api/auth/youtube">
+                <Button 
+                  className="w-full bg-red-500 hover:bg-red-600"
+                >
+                  Connect YouTube
+                </Button>
+              </a>
             )}
           </CardContent>
         </Card>
@@ -417,19 +421,23 @@ export default async function ConnectionsPage({
                   accessTokenExpired={isInstagramExpired}
                   hasRefreshToken={!!instagramRefreshToken}
                 />
-                <Button 
-                  variant="outline" 
-                  className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isInstagramRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
-                >
-                  <Link href="/api/auth/instagram">{isInstagramRefreshTokenExpired ? 'Update Connection' : isInstagramExpired ? 'Reconnect' : 'Update Connection'}</Link>
-                </Button>
+                <a href="/api/auth/instagram">
+                  <Button 
+                    variant="outline" 
+                    className={`w-full bg-white/10 text-white hover:bg-white/20 border-white/10 ${isInstagramRefreshTokenExpired ? 'border-yellow-500/50 bg-yellow-500/10' : ''}`}
+                  >
+                    {isInstagramRefreshTokenExpired ? 'Update Connection' : isInstagramExpired ? 'Reconnect' : 'Update Connection'}
+                  </Button>
+                </a>
               </div>
             ) : (
-              <Button 
-                className="w-full bg-pink-500 hover:bg-pink-600"
-              >
-                <Link href="/api/auth/instagram">Connect Instagram</Link>
-              </Button>
+              <a href="/api/auth/instagram">
+                <Button 
+                  className="w-full bg-pink-500 hover:bg-pink-600"
+                >
+                  Connect Instagram
+                </Button>
+              </a>
             )}
           </CardContent>
         </Card>
